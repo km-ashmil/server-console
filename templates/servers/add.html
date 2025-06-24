@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}Add Server - Server Management{% endblock %}
+{% block page_title %}Add New Server{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card shadow">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-plus-circle text-primary"></i>
+                    Add New Server
+                </h5>
+            </div>
+            <div class="card-body">
+                {% crispy form %}
+            </div>
+        </div>
+        
+        <div class="text-center mt-3">
+            <a href="{% url 'servers:list' %}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> Back to Servers
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Toggle authentication method fields
+function toggleAuthMethod() {
+    const authMethod = document.querySelector('input[name="auth_method"]:checked');
+    const passwordField = document.getElementById('div_id_password');
+    const privateKeyField = document.getElementById('div_id_private_key');
+    const keyPasswordField = document.getElementById('div_id_key_password');
+    
+    if (authMethod && authMethod.value === 'password') {
+        passwordField.style.display = 'block';
+        privateKeyField.style.display = 'none';
+        keyPasswordField.style.display = 'none';
+    } else if (authMethod && authMethod.value === 'key') {
+        passwordField.style.display = 'none';
+        privateKeyField.style.display = 'block';
+        keyPasswordField.style.display = 'block';
+    }
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    // Add event listeners to auth method radio buttons
+    const authMethodInputs = document.querySelectorAll('input[name="auth_method"]');
+    authMethodInputs.forEach(input => {
+        input.addEventListener('change', toggleAuthMethod);
+    });
+    
+    // Initial toggle
+    toggleAuthMethod();
+});
+</script>
+{% endblock %}

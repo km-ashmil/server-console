@@ -1,0 +1,208 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}Profile - {{ user.get_full_name|default:user.username }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <!-- Header -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h2><i class="bi bi-person-circle"></i> User Profile</h2>
+                    <p class="text-muted mb-0">View and manage your account information</p>
+                </div>
+                <a href="{% url 'authentication:profile_edit' %}" class="btn btn-primary">
+                    <i class="bi bi-pencil"></i> Edit Profile
+                </a>
+            </div>
+
+            <div class="row">
+                <!-- Profile Information -->
+                <div class="col-lg-8">
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="card-title mb-0">
+                                <i class="bi bi-person"></i> Personal Information
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label text-muted">Username</label>
+                                        <p class="fw-bold">{{ user.username }}</p>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label text-muted">First Name</label>
+                                        <p class="fw-bold">{{ user.first_name|default:"Not provided" }}</p>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label text-muted">Email</label>
+                                        <p class="fw-bold">{{ user.email|default:"Not provided" }}</p>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label text-muted">Last Name</label>
+                                        <p class="fw-bold">{{ user.last_name|default:"Not provided" }}</p>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label text-muted">Date Joined</label>
+                                        <p class="fw-bold">{{ user.date_joined|date:"F d, Y" }}</p>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label text-muted">Last Login</label>
+                                        <p class="fw-bold">{{ user.last_login|date:"F d, Y g:i A"|default:"Never" }}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Account Statistics -->
+                    <div class="card shadow-sm">
+                        <div class="card-header bg-info text-white">
+                            <h5 class="card-title mb-0">
+                                <i class="bi bi-graph-up"></i> Account Statistics
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row text-center">
+                                <div class="col-md-3">
+                                    <div class="stat-item">
+                                        <h3 class="text-primary">{{ servers_count }}</h3>
+                                        <p class="text-muted mb-0">Servers</p>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="stat-item">
+                                        <h3 class="text-success">{{ active_sessions }}</h3>
+                                        <p class="text-muted mb-0">Active Sessions</p>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="stat-item">
+                                        <h3 class="text-warning">{{ total_connections }}</h3>
+                                        <p class="text-muted mb-0">Total Connections</p>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="stat-item">
+                                        <h3 class="text-info">{{ commands_today }}</h3>
+                                        <p class="text-muted mb-0">Commands Today</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="col-lg-4">
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-header bg-secondary text-white">
+                            <h5 class="card-title mb-0">
+                                <i class="bi bi-gear"></i> Quick Actions
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="d-grid gap-2">
+                                <a href="{% url 'authentication:profile_edit' %}" class="btn btn-outline-primary">
+                                    <i class="bi bi-pencil"></i> Edit Profile
+                                </a>
+                                <a href="{% url 'authentication:change_password' %}" class="btn btn-outline-warning">
+                                    <i class="bi bi-key"></i> Change Password
+                                </a>
+                                <a href="{% url 'servers:list' %}" class="btn btn-outline-info">
+                                    <i class="bi bi-server"></i> Manage Servers
+                                </a>
+                                <a href="{% url 'dashboard:home' %}" class="btn btn-outline-success">
+                                    <i class="bi bi-speedometer2"></i> Dashboard
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Security Information -->
+                    <div class="card shadow-sm">
+                        <div class="card-header bg-warning text-dark">
+                            <h5 class="card-title mb-0">
+                                <i class="bi bi-shield-check"></i> Security
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <label class="form-label text-muted">Account Status</label>
+                                <p class="fw-bold">
+                                    {% if user.is_active %}
+                                        <span class="badge bg-success">Active</span>
+                                    {% else %}
+                                        <span class="badge bg-danger">Inactive</span>
+                                    {% endif %}
+                                </p>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label text-muted">Staff Status</label>
+                                <p class="fw-bold">
+                                    {% if user.is_staff %}
+                                        <span class="badge bg-info">Staff Member</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">Regular User</span>
+                                    {% endif %}
+                                </p>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label text-muted">Superuser</label>
+                                <p class="fw-bold">
+                                    {% if user.is_superuser %}
+                                        <span class="badge bg-danger">Yes</span>
+                                    {% else %}
+                                        <span class="badge bg-success">No</span>
+                                    {% endif %}
+                                </p>
+                            </div>
+                            <div class="alert alert-info" role="alert">
+                                <i class="bi bi-info-circle"></i>
+                                <small>Last password change: {{ user.last_login|date:"F d, Y"|default:"Unknown" }}</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.stat-item {
+    padding: 1rem;
+    border-radius: 0.5rem;
+    background-color: #f8f9fa;
+    margin-bottom: 1rem;
+}
+
+.stat-item h3 {
+    font-size: 2rem;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+}
+
+.card {
+    border: none;
+    border-radius: 0.75rem;
+}
+
+.card-header {
+    border-radius: 0.75rem 0.75rem 0 0 !important;
+    border-bottom: none;
+}
+
+.badge {
+    font-size: 0.875rem;
+}
+</style>
+{% endblock %}

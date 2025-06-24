@@ -1,0 +1,247 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}Servers - Server Management{% endblock %}
+{% block page_title %}Servers{% endblock %}
+
+{% block content %}
+<!-- Header with Add Button -->
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Server Management</h2>
+    <a href="{% url 'servers:create' %}" class="btn btn-primary">
+        <i class="bi bi-plus-circle"></i> Add Server
+    </a>
+</div>
+
+<!-- Search and Filter -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-3">
+                <label for="name" class="form-label">Server Name</label>
+                <input type="text" class="form-control" id="name" name="name" value="{{ request.GET.name }}" placeholder="Search by name...">
+            </div>
+            <div class="col-md-2">
+                <label for="group" class="form-label">Group</label>
+                <select class="form-select" id="group" name="group">
+                    <option value="">All Groups</option>
+                    {% for group in groups %}
+                        <option value="{{ group.id }}" {% if request.GET.group == group.id|stringformat:'s' %}selected{% endif %}>
+                            {{ group.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label for="status" class="form-label">Status</label>
+                <select class="form-select" id="status" name="status">
+                    <option value="">All Status</option>
+                    <option value="online" {% if request.GET.status == 'online' %}selected{% endif %}>Online</option>
+                    <option value="offline" {% if request.GET.status == 'offline' %}selected{% endif %}>Offline</option>
+                    <option value="error" {% if request.GET.status == 'error' %}selected{% endif %}>Error</option>
+                    <option value="unknown" {% if request.GET.status == 'unknown' %}selected{% endif %}>Unknown</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="tags" class="form-label">Tags</label>
+                <input type="text" class="form-control" id="tags" name="tags" value="{{ request.GET.tags }}" placeholder="Search by tags...">
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button type="submit" class="btn btn-outline-primary me-2">
+                    <i class="bi bi-search"></i> Search
+                </button>
+                <a href="{% url 'servers:list' %}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-clockwise"></i>
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Server Groups -->
+{% if groups %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="mb-0">Server Groups</h6>
+                <a href="{% url 'servers:group_create' %}" class="btn btn-sm btn-outline-primary">
+                    <i class="bi bi-plus"></i> Add Group
+                </a>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    {% for group in groups %}
+                        <div class="col-md-3 mb-2">
+                            <div class="border rounded p-2 d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong>{{ group.name }}</strong>
+                                    <small class="text-muted d-block">{{ group.servers.count }} servers</small>
+                                </div>
+                                <div class="dropdown">
+                                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                        <i class="bi bi-three-dots"></i>
+                                    </button>
+                                    <ul class="dropdown-menu">
+                                        <li><a class="dropdown-item" href="{% url 'servers:group_edit' group.id %}"><i class="bi bi-pencil"></i> Edit</a></li>
+                                        <li><a class="dropdown-item text-danger" href="{% url 'servers:group_delete' group.id %}"><i class="bi bi-trash"></i> Delete</a></li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Servers Table -->
+<div class="card">
+    <div class="card-header">
+        <h6 class="mb-0">Servers ({{ page_obj.paginator.count }} total)</h6>
+    </div>
+    <div class="card-body p-0">
+        {% if page_obj %}
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Name</th>
+                            <th>Host</th>
+                            <th>Group</th>
+                            <th>Status</th>
+                            <th>Tags</th>
+                            <th>Last Updated</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for server in page_obj %}
+                            <tr>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <i class="bi bi-hdd-stack me-2 text-primary"></i>
+                                        <div>
+                                            <strong>{{ server.name }}</strong>
+                                            {% if server.description %}
+                                                <small class="text-muted d-block">{{ server.description|truncatechars:50 }}</small>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <code>{{ server.host }}:{{ server.port }}</code>
+                                    <small class="text-muted d-block">{{ server.username }}</small>
+                                </td>
+                                <td>
+                                    {% if server.group %}
+                                        <span class="badge bg-secondary">{{ server.group.name }}</span>
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge status-badge status-{{ server.status }}">
+                                        {{ server.get_status_display }}
+                                    </span>
+                                </td>
+                                <td>
+                                    {% if server.get_tags %}
+                                        {% for tag in server.get_tags %}
+                                            <span class="badge bg-light text-dark me-1">{{ tag }}</span>
+                                        {% endfor %}
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <small class="text-muted">{{ server.updated_at|timesince }} ago</small>
+                                </td>
+                                <td>
+                                    <div class="btn-group" role="group">
+                                        <a href="{% url 'servers:detail' server.id %}" class="btn btn-sm btn-outline-primary" title="View Details">
+                                            <i class="bi bi-eye"></i>
+                                        </a>
+                                        <a href="{% url 'terminal:connect' server.id %}" class="btn btn-sm btn-outline-success" title="Connect Terminal">
+                                            <i class="bi bi-terminal"></i>
+                                        </a>
+                                        <div class="dropdown">
+                                            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                                <i class="bi bi-three-dots"></i>
+                                            </button>
+                                            <ul class="dropdown-menu">
+                                                <li><a class="dropdown-item" href="{% url 'servers:edit' server.id %}"><i class="bi bi-pencil"></i> Edit</a></li>
+                                                <li><a class="dropdown-item" href="{% url 'servers:test' server.id %}"><i class="bi bi-wifi"></i> Test Connection</a></li>
+                                                <li><hr class="dropdown-divider"></li>
+                                                <li><a class="dropdown-item text-danger" href="{% url 'servers:delete' server.id %}"><i class="bi bi-trash"></i> Delete</a></li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Pagination -->
+            {% if page_obj.has_other_pages %}
+                <div class="card-footer">
+                    <nav aria-label="Server pagination">
+                        <ul class="pagination justify-content-center mb-0">
+                            {% if page_obj.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ page_obj.previous_page_number }}">
+                                        <i class="bi bi-chevron-left"></i>
+                                    </a>
+                                </li>
+                            {% endif %}
+                            
+                            {% for num in page_obj.paginator.page_range %}
+                                {% if page_obj.number == num %}
+                                    <li class="page-item active">
+                                        <span class="page-link">{{ num }}</span>
+                                    </li>
+                                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ num }}">{{ num }}</a>
+                                    </li>
+                                {% endif %}
+                            {% endfor %}
+                            
+                            {% if page_obj.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ page_obj.next_page_number }}">
+                                        <i class="bi bi-chevron-right"></i>
+                                    </a>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                </div>
+            {% endif %}
+        {% else %}
+            <div class="text-center py-5">
+                <i class="bi bi-hdd-stack display-4 text-muted"></i>
+                <h4 class="mt-3 text-muted">No servers found</h4>
+                <p class="text-muted">Get started by adding your first server.</p>
+                <a href="{% url 'servers:create' %}" class="btn btn-primary">
+                    <i class="bi bi-plus-circle"></i> Add Server
+                </a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Auto-refresh server status every 30 seconds
+setInterval(function() {
+    // You can implement AJAX calls here to update server status
+    // without refreshing the entire page
+}, 30000);
+</script>
+{% endblock %}

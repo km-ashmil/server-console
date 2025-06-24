@@ -1,0 +1,135 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}Test Connection - {{ server.name }}{% endblock %}
+{% block page_title %}Test Connection - {{ server.name }}{% endblock %}
+
+{% block content %}
+<!-- Server Test Connection -->
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="card-title mb-0">
+                    <i class="bi bi-wifi"></i> Test Connection to {{ server.name }}
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="server-info mb-4">
+                    <p class="mb-1"><strong>Hostname:</strong> {{ server.hostname }}</p>
+                    <p class="mb-1"><strong>Port:</strong> {{ server.port }}</p>
+                    <p class="mb-1"><strong>Username:</strong> {{ server.username }}</p>
+                    <p class="mb-0"><strong>Authentication:</strong> {{ server.get_auth_method_display }}</p>
+                </div>
+                
+                <form id="test-connection-form" method="post">
+                    {% csrf_token %}
+                    {{ form|crispy }}
+                    <div class="d-grid gap-2 mt-3">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-wifi"></i> Test Connection
+                        </button>
+                    </div>
+                </form>
+                
+                <div id="test-results" class="mt-4 d-none">
+                    <h5>Test Results</h5>
+                    <div class="alert" id="result-status"></div>
+                    <div class="card bg-dark text-light">
+                        <div class="card-header">
+                            <h6 class="mb-0">Command Output</h6>
+                        </div>
+                        <div class="card-body">
+                            <pre id="command-output" class="mb-0"></pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-secondary text-white">
+                <h5 class="card-title mb-0">
+                    <i class="bi bi-info-circle"></i> Connection Help
+                </h5>
+            </div>
+            <div class="card-body">
+                <p>Testing the connection will execute the specified command on the remote server and display the results.</p>
+                <p>Common test commands:</p>
+                <ul>
+                    <li><code>whoami</code> - Show current user</li>
+                    <li><code>hostname</code> - Show server hostname</li>
+                    <li><code>pwd</code> - Show current directory</li>
+                    <li><code>ls -la</code> - List files with details</li>
+                    <li><code>df -h</code> - Show disk usage</li>
+                </ul>
+                <div class="d-grid gap-2 mt-3">
+                    <a href="{% url 'servers:detail' server.id %}" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-left"></i> Back to Server Details
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        $('#test-connection-form').on('submit', function(e) {
+            e.preventDefault();
+            
+            // Show loading state
+            $('#test-connection-form button[type="submit"]').prop('disabled', true).html(
+                '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Testing...'
+            );
+            
+            // Clear previous results
+            $('#test-results').addClass('d-none');
+            
+            // Submit form via AJAX
+            $.ajax({
+                url: '{% url "servers:test" server.id %}',
+                type: 'POST',
+                data: $(this).serialize(),
+                dataType: 'json',
+                success: function(data) {
+                    // Show results
+                    $('#test-results').removeClass('d-none');
+                    
+                    // Update status
+                    if (data.status === 'success') {
+                        $('#result-status')
+                            .removeClass('alert-danger')
+                            .addClass('alert-success')
+                            .html('<i class="bi bi-check-circle"></i> Connection successful!');
+                    } else {
+                        $('#result-status')
+                            .removeClass('alert-success')
+                            .addClass('alert-danger')
+                            .html('<i class="bi bi-exclamation-triangle"></i> ' + data.message);
+                    }
+                    
+                    // Update output
+                    $('#command-output').text(data.output || 'No output');
+                },
+                error: function() {
+                    // Show error
+                    $('#test-results').removeClass('d-none');
+                    $('#result-status')
+                        .removeClass('alert-success')
+                        .addClass('alert-danger')
+                        .html('<i class="bi bi-exclamation-triangle"></i> Failed to test connection. Please try again.');
+                },
+                complete: function() {
+                    // Reset button
+                    $('#test-connection-form button[type="submit"]').prop('disabled', false).html('Test Connection');
+                }
+            });
+        });
+    });
+</script>
+{% endblock %}

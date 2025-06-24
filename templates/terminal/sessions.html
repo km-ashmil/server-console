@@ -1,0 +1,459 @@
+{% extends 'base.html' %}
+
+{% block title %}Terminal Sessions{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <!-- Header -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h2><i class="bi bi-terminal"></i> Terminal Sessions</h2>
+                    <p class="text-muted mb-0">Manage your active SSH terminal sessions</p>
+                </div>
+                <div>
+                    <button class="btn btn-outline-primary me-2" onclick="refreshSessions()">
+                        <i class="bi bi-arrow-clockwise"></i> Refresh
+                    </button>
+                    <a href="{% url 'servers:list' %}" class="btn btn-primary">
+                        <i class="bi bi-plus-lg"></i> New Connection
+                    </a>
+                </div>
+            </div>
+
+            <!-- Statistics Cards -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card bg-primary text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h4 class="card-title">{{ total_sessions }}</h4>
+                                    <p class="card-text">Total Sessions</p>
+                                </div>
+                                <div class="align-self-center">
+                                    <i class="bi bi-terminal fs-1"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-success text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h4 class="card-title">{{ active_sessions }}</h4>
+                                    <p class="card-text">Active Sessions</p>
+                                </div>
+                                <div class="align-self-center">
+                                    <i class="bi bi-play-circle fs-1"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-warning text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h4 class="card-title">{{ idle_sessions }}</h4>
+                                    <p class="card-text">Idle Sessions</p>
+                                </div>
+                                <div class="align-self-center">
+                                    <i class="bi bi-pause-circle fs-1"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-info text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h4 class="card-title">{{ unique_servers }}</h4>
+                                    <p class="card-text">Connected Servers</p>
+                                </div>
+                                <div class="align-self-center">
+                                    <i class="bi bi-server fs-1"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sessions Table -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-light">
+                    <div class="row align-items-center">
+                        <div class="col">
+                            <h5 class="card-title mb-0">
+                                <i class="bi bi-list-ul"></i> Active Sessions
+                            </h5>
+                        </div>
+                        <div class="col-auto">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="autoRefresh" checked>
+                                <label class="form-check-label" for="autoRefresh">
+                                    Auto-refresh
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    {% if sessions %}
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Server</th>
+                                        <th>Status</th>
+                                        <th>Started</th>
+                                        <th>Duration</th>
+                                        <th>Last Activity</th>
+                                        <th>Commands</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="sessionsTableBody">
+                                    {% for session in sessions %}
+                                    <tr data-session-id="{{ session.id }}">
+                                        <td>
+                                            <div class="d-flex align-items-center">
+                                                <div class="server-icon me-2">
+                                                    {% if session.server.status == 'online' %}
+                                                        <i class="bi bi-circle-fill text-success"></i>
+                                                    {% elif session.server.status == 'offline' %}
+                                                        <i class="bi bi-circle-fill text-danger"></i>
+                                                    {% else %}
+                                                        <i class="bi bi-circle-fill text-warning"></i>
+                                                    {% endif %}
+                                                </div>
+                                                <div>
+                                                    <strong>{{ session.server.name }}</strong><br>
+                                                    <small class="text-muted">{{ session.server.host }}:{{ session.server.port }}</small>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            {% if session.is_active %}
+                                                <span class="badge bg-success">Active</span>
+                                            {% else %}
+                                                <span class="badge bg-secondary">Inactive</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <span title="{{ session.created_at|date:'Y-m-d H:i:s' }}">
+                                                {{ session.created_at|timesince }} ago
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span id="duration-{{ session.id }}">
+                                                {{ session.duration|default:"--" }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            {% if session.last_activity %}
+                                                <span title="{{ session.last_activity|date:'Y-m-d H:i:s' }}">
+                                                    {{ session.last_activity|timesince }} ago
+                                                </span>
+                                            {% else %}
+                                                <span class="text-muted">No activity</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-info">{{ session.command_count|default:0 }}</span>
+                                        </td>
+                                        <td>
+                                            <div class="btn-group btn-group-sm" role="group">
+                                                {% if session.is_active %}
+                                                    <a href="{% url 'terminal:connect' session.server.pk %}" 
+                                                       class="btn btn-outline-primary" 
+                                                       title="Connect to Terminal">
+                                                        <i class="bi bi-terminal"></i>
+                                                    </a>
+                                                {% endif %}
+                                                <a href="{% url 'terminal:logs' session.server.pk %}" 
+                                                   class="btn btn-outline-info" 
+                                                   title="View Logs">
+                                                    <i class="bi bi-file-text"></i>
+                                                </a>
+                                                <button class="btn btn-outline-danger" 
+                                                        onclick="closeSession({{ session.id }})" 
+                                                        title="Close Session">
+                                                    <i class="bi bi-x-lg"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="bi bi-terminal fs-1 text-muted"></i>
+                            <h5 class="mt-3 text-muted">No Active Sessions</h5>
+                            <p class="text-muted">You don't have any active terminal sessions.</p>
+                            <a href="{% url 'servers:list' %}" class="btn btn-primary">
+                                <i class="bi bi-plus-lg"></i> Connect to a Server
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Pagination -->
+            {% if is_paginated %}
+                <nav aria-label="Sessions pagination" class="mt-4">
+                    <ul class="pagination justify-content-center">
+                        {% if page_obj.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page=1">&laquo; First</a>
+                            </li>
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Previous</a>
+                            </li>
+                        {% endif %}
+                        
+                        <li class="page-item active">
+                            <span class="page-link">
+                                Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+                            </span>
+                        </li>
+                        
+                        {% if page_obj.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.next_page_number }}">Next</a>
+                            </li>
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}">Last &raquo;</a>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Close Session Modal -->
+<div class="modal fade" id="closeSessionModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Close Session</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to close this terminal session?</p>
+                <p class="text-muted">This action cannot be undone and will terminate the connection.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirmCloseSession">Close Session</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.card {
+    border: none;
+    border-radius: 0.75rem;
+}
+
+.card-header {
+    border-radius: 0.75rem 0.75rem 0 0 !important;
+    border-bottom: 1px solid rgba(0,0,0,.125);
+}
+
+.server-icon {
+    font-size: 0.75rem;
+}
+
+.table th {
+    border-top: none;
+    font-weight: 600;
+    color: #495057;
+}
+
+.btn-group-sm .btn {
+    padding: 0.25rem 0.5rem;
+}
+
+.badge {
+    font-size: 0.75rem;
+}
+
+.duration-display {
+    font-family: 'Courier New', monospace;
+    font-size: 0.875rem;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let autoRefreshInterval;
+let sessionToClose = null;
+
+// Auto-refresh functionality
+function startAutoRefresh() {
+    autoRefreshInterval = setInterval(refreshSessions, 30000); // Refresh every 30 seconds
+}
+
+function stopAutoRefresh() {
+    if (autoRefreshInterval) {
+        clearInterval(autoRefreshInterval);
+    }
+}
+
+// Refresh sessions
+function refreshSessions() {
+    fetch(window.location.href, {
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.text())
+    .then(html => {
+        // Parse the response and update the table
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        const newTableBody = doc.getElementById('sessionsTableBody');
+        
+        if (newTableBody) {
+            document.getElementById('sessionsTableBody').innerHTML = newTableBody.innerHTML;
+        }
+        
+        // Update statistics cards
+        const statsCards = doc.querySelectorAll('.card h4');
+        const currentStatsCards = document.querySelectorAll('.card h4');
+        
+        statsCards.forEach((card, index) => {
+            if (currentStatsCards[index]) {
+                currentStatsCards[index].textContent = card.textContent;
+            }
+        });
+        
+        console.log('Sessions refreshed at', new Date().toLocaleTimeString());
+    })
+    .catch(error => {
+        console.error('Error refreshing sessions:', error);
+    });
+}
+
+// Close session functionality
+function closeSession(sessionId) {
+    sessionToClose = sessionId;
+    const modal = new bootstrap.Modal(document.getElementById('closeSessionModal'));
+    modal.show();
+}
+
+// Update durations in real-time
+function updateDurations() {
+    document.querySelectorAll('[id^="duration-"]').forEach(element => {
+        const sessionId = element.id.split('-')[1];
+        const row = document.querySelector(`tr[data-session-id="${sessionId}"]`);
+        
+        if (row) {
+            // This would need to be implemented with actual session start times
+            // For now, we'll just refresh the page data
+        }
+    });
+}
+
+// Initialize page
+document.addEventListener('DOMContentLoaded', function() {
+    // Auto-refresh toggle
+    const autoRefreshToggle = document.getElementById('autoRefresh');
+    
+    if (autoRefreshToggle.checked) {
+        startAutoRefresh();
+    }
+    
+    autoRefreshToggle.addEventListener('change', function() {
+        if (this.checked) {
+            startAutoRefresh();
+        } else {
+            stopAutoRefresh();
+        }
+    });
+    
+    // Close session confirmation
+    document.getElementById('confirmCloseSession').addEventListener('click', function() {
+        if (sessionToClose) {
+            fetch(`{% url 'terminal:close_session' 0 %}`.replace('0', sessionToClose), {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Remove the row from the table
+                    const row = document.querySelector(`tr[data-session-id="${sessionToClose}"]`);
+                    if (row) {
+                        row.remove();
+                    }
+                    
+                    // Show success message
+                    showAlert('Session closed successfully', 'success');
+                    
+                    // Refresh the page to update statistics
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1000);
+                } else {
+                    showAlert('Failed to close session: ' + data.message, 'danger');
+                }
+            })
+            .catch(error => {
+                showAlert('Error closing session: ' + error.message, 'danger');
+            })
+            .finally(() => {
+                const modal = bootstrap.Modal.getInstance(document.getElementById('closeSessionModal'));
+                modal.hide();
+                sessionToClose = null;
+            });
+        }
+    });
+    
+    // Update durations every minute
+    setInterval(updateDurations, 60000);
+});
+
+// Utility function to show alerts
+function showAlert(message, type) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    const container = document.querySelector('.container-fluid');
+    container.insertBefore(alertDiv, container.firstChild);
+    
+    // Auto-hide after 5 seconds
+    setTimeout(() => {
+        alertDiv.remove();
+    }, 5000);
+}
+
+// Cleanup on page unload
+window.addEventListener('beforeunload', function() {
+    stopAutoRefresh();
+});
+</script>
+{% endblock %}

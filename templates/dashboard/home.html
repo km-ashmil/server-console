@@ -1,0 +1,305 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard - Server Management{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block extra_css %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+
+{% block content %}
+<!-- Statistics Cards -->
+<div class="row mb-4">
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-primary shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                            Total Servers
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total_servers }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-hdd-stack fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-success shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                            Online Servers
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ online_servers }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-check-circle fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-info shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                            Active Sessions
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ active_connections.count }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-terminal fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-warning shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                            Commands Today
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ commands_today }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-code-slash fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row -->
+<div class="row mb-4">
+    <!-- Server Status Chart -->
+    <div class="col-xl-6 col-lg-7">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                <h6 class="m-0 font-weight-bold text-primary">Server Status Distribution</h6>
+            </div>
+            <div class="card-body">
+                <div class="chart-pie pt-4 pb-2">
+                    <canvas id="serverStatusChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Weekly Activity Chart -->
+    <div class="col-xl-6 col-lg-5">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                <h6 class="m-0 font-weight-bold text-primary">Weekly Activity</h6>
+            </div>
+            <div class="card-body">
+                <div class="chart-area">
+                    <canvas id="weeklyActivityChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Content Row -->
+<div class="row">
+    <!-- Recent Servers -->
+    <div class="col-lg-6 mb-4">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Recent Servers</h6>
+            </div>
+            <div class="card-body">
+                {% if recent_servers %}
+                    <div class="list-group list-group-flush">
+                        {% for server in recent_servers %}
+                            <div class="list-group-item d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="mb-1">{{ server.name }}</h6>
+                                    <p class="mb-1 text-muted">{{ server.host }}:{{ server.port }}</p>
+                                    <small class="text-muted">{{ server.created_at|timesince }} ago</small>
+                                </div>
+                                <div>
+                                    <span class="badge status-badge status-{{ server.status }}">{{ server.get_status_display }}</span>
+                                    <a href="{% url 'servers:detail' server.id %}" class="btn btn-sm btn-outline-primary ms-2">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                    <div class="text-center mt-3">
+                        <a href="{% url 'servers:list' %}" class="btn btn-primary">View All Servers</a>
+                    </div>
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="bi bi-hdd-stack display-4 text-muted"></i>
+                        <p class="mt-2 text-muted">No servers yet</p>
+                        <a href="{% url 'servers:create' %}" class="btn btn-primary">Add Your First Server</a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Active Sessions -->
+    <div class="col-lg-6 mb-4">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Active Terminal Sessions</h6>
+            </div>
+            <div class="card-body">
+                {% if active_connections %}
+                    <div class="list-group list-group-flush">
+                        {% for connection in active_connections %}
+                            <div class="list-group-item d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="mb-1">{{ connection.server.name }}</h6>
+                                    <p class="mb-1 text-muted">{{ connection.server.host }}:{{ connection.server.port }}</p>
+                                    <small class="text-muted">Connected {{ connection.connected_at|timesince }} ago</small>
+                                </div>
+                                <div>
+                                    <a href="{% url 'terminal:connect' connection.server.id %}" class="btn btn-sm btn-success">
+                                        <i class="bi bi-terminal"></i> Connect
+                                    </a>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                    <div class="text-center mt-3">
+                        <a href="{% url 'terminal:sessions' %}" class="btn btn-primary">View All Sessions</a>
+                    </div>
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="bi bi-terminal display-4 text-muted"></i>
+                        <p class="mt-2 text-muted">No active sessions</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Activity -->
+<div class="row">
+    <div class="col-12">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Recent Activity</h6>
+            </div>
+            <div class="card-body">
+                {% if recent_logs %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Time</th>
+                                    <th>Server</th>
+                                    <th>Type</th>
+                                    <th>Message</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for log in recent_logs %}
+                                    <tr>
+                                        <td>{{ log.timestamp|timesince }} ago</td>
+                                        <td>{{ log.server.name }}</td>
+                                        <td>
+                                            <span class="badge bg-secondary">{{ log.get_log_type_display }}</span>
+                                        </td>
+                                        <td>{{ log.message|truncatechars:50 }}</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="text-center mt-3">
+                        <a href="{% url 'dashboard:activity_logs' %}" class="btn btn-primary">View All Activity</a>
+                    </div>
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="bi bi-activity display-4 text-muted"></i>
+                        <p class="mt-2 text-muted">No recent activity</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Server Status Chart
+const statusCtx = document.getElementById('serverStatusChart').getContext('2d');
+const serverStatusChart = new Chart(statusCtx, {
+    type: 'doughnut',
+    data: {
+        labels: ['Online', 'Offline', 'Error', 'Unknown'],
+        datasets: [{
+            data: [{{ status_data.online }}, {{ status_data.offline }}, {{ status_data.error }}, {{ status_data.unknown }}],
+            backgroundColor: ['#28a745', '#6c757d', '#dc3545', '#ffc107'],
+            borderWidth: 2,
+            borderColor: '#fff'
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'bottom'
+            }
+        }
+    }
+});
+
+// Weekly Activity Chart
+const activityCtx = document.getElementById('weeklyActivityChart').getContext('2d');
+const weeklyActivityChart = new Chart(activityCtx, {
+    type: 'line',
+    data: {
+        labels: [{% for day in weekly_activity %}'{{ day.date }}'{% if not forloop.last %},{% endif %}{% endfor %}],
+        datasets: [{
+            label: 'Connections',
+            data: [{% for day in weekly_activity %}{{ day.connections }}{% if not forloop.last %},{% endif %}{% endfor %}],
+            borderColor: '#667eea',
+            backgroundColor: 'rgba(102, 126, 234, 0.1)',
+            borderWidth: 2,
+            fill: true,
+            tension: 0.4
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+            y: {
+                beginAtZero: true,
+                ticks: {
+                    stepSize: 1
+                }
+            }
+        },
+        plugins: {
+            legend: {
+                display: false
+            }
+        }
+    }
+});
+</script>
+{% endblock %}

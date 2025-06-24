@@ -1,0 +1,480 @@
+{% extends 'base.html' %}
+
+{% block title %}Terminal - {{ server.name }}{% endblock %}
+{% block page_title %}Terminal - {{ server.name }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" />
+<style>
+    .terminal-wrapper {
+        background-color: #1e1e1e;
+        border-radius: 0.5rem;
+        overflow: hidden;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    
+    .terminal-header {
+        background-color: #2d2d2d;
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid #444;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+    
+    .terminal-controls {
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+    }
+    
+    .terminal-btn {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        border: none;
+        cursor: pointer;
+    }
+    
+    .terminal-btn.close { background-color: #ff5f56; }
+    .terminal-btn.minimize { background-color: #ffbd2e; }
+    .terminal-btn.maximize { background-color: #27ca3f; }
+    
+    .terminal-info {
+        color: #ffffff;
+        font-size: 0.875rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+    
+    .terminal-status {
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+    
+    .status-indicator {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background-color: #28a745;
+        animation: pulse 2s infinite;
+    }
+    
+    .status-indicator.disconnected {
+        background-color: #dc3545;
+        animation: none;
+    }
+    
+    @keyframes pulse {
+        0% { opacity: 1; }
+        50% { opacity: 0.5; }
+        100% { opacity: 1; }
+    }
+    
+    #terminal {
+        padding: 1rem;
+        height: 600px;
+    }
+    
+    .connection-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(0, 0, 0, 0.8);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+        border-radius: 0.5rem;
+    }
+    
+    .connection-message {
+        text-align: center;
+        color: white;
+    }
+    
+    .spinner-border {
+        width: 3rem;
+        height: 3rem;
+    }
+    
+    .terminal-actions {
+        background-color: #f8f9fa;
+        padding: 1rem;
+        border-top: 1px solid #dee2e6;
+    }
+    
+    .quick-commands {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+    
+    .quick-command {
+        font-size: 0.875rem;
+        padding: 0.25rem 0.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Server Info -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col-md-8">
+                        <h5 class="mb-1">{{ server.name }}</h5>
+                        <p class="text-muted mb-0">
+                            <i class="bi bi-hdd-stack"></i> {{ server.host }}:{{ server.port }} 
+                            <span class="mx-2">|</span>
+                            <i class="bi bi-person"></i> {{ server.username }}
+                            {% if server.description %}
+                                <span class="mx-2">|</span>
+                                {{ server.description }}
+                            {% endif %}
+                        </p>
+                    </div>
+                    <div class="col-md-4 text-md-end">
+                        <span class="badge status-badge status-{{ server.status }} me-2">{{ server.get_status_display }}</span>
+                        <a href="{% url 'servers:detail' server.id %}" class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-info-circle"></i> Details
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Terminal -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body p-0">
+                <div class="terminal-wrapper position-relative">
+                    <!-- Connection Overlay -->
+                    <div class="connection-overlay" id="connectionOverlay">
+                        <div class="connection-message">
+                            <div class="spinner-border text-primary mb-3" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <h5>Connecting to {{ server.name }}...</h5>
+                            <p class="text-muted">Establishing secure connection</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Terminal Header -->
+                    <div class="terminal-header">
+                        <div class="terminal-controls">
+                            <button class="terminal-btn close" onclick="closeTerminal()"></button>
+                            <button class="terminal-btn minimize" onclick="minimizeTerminal()"></button>
+                            <button class="terminal-btn maximize" onclick="maximizeTerminal()"></button>
+                        </div>
+                        <div class="terminal-info">
+                            <span>{{ server.username }}@{{ server.host }}</span>
+                            <div class="terminal-status">
+                                <div class="status-indicator" id="statusIndicator"></div>
+                                <span id="connectionStatus">Connecting...</span>
+                            </div>
+                        </div>
+                        <div class="terminal-controls">
+                            <button class="btn btn-sm btn-outline-light" onclick="clearTerminal()" title="Clear Terminal">
+                                <i class="bi bi-arrow-clockwise"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-light" onclick="downloadLog()" title="Download Log">
+                                <i class="bi bi-download"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Terminal Content -->
+                    <div id="terminal"></div>
+                </div>
+                
+                <!-- Terminal Actions -->
+                <div class="terminal-actions">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <label class="form-label mb-2">Quick Commands:</label>
+                            <div class="quick-commands">
+                                <button class="btn btn-outline-secondary quick-command" onclick="sendCommand('ls -la')">
+                                    ls -la
+                                </button>
+                                <button class="btn btn-outline-secondary quick-command" onclick="sendCommand('top')">
+                                    top
+                                </button>
+                                <button class="btn btn-outline-secondary quick-command" onclick="sendCommand('df -h')">
+                                    df -h
+                                </button>
+                                <button class="btn btn-outline-secondary quick-command" onclick="sendCommand('ps aux')">
+                                    ps aux
+                                </button>
+                                <button class="btn btn-outline-secondary quick-command" onclick="sendCommand('free -m')">
+                                    free -m
+                                </button>
+                                <button class="btn btn-outline-secondary quick-command" onclick="sendCommand('uname -a')">
+                                    uname -a
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-md-4 text-md-end">
+                            <button class="btn btn-outline-warning" onclick="reconnect()">
+                                <i class="bi bi-arrow-repeat"></i> Reconnect
+                            </button>
+                            <button class="btn btn-outline-danger" onclick="disconnect()">
+                                <i class="bi bi-x-circle"></i> Disconnect
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xterm-addon-web-links@0.9.0/lib/xterm-addon-web-links.js"></script>
+
+<script>
+let terminal;
+let websocket;
+let fitAddon;
+let isConnected = false;
+let reconnectAttempts = 0;
+const maxReconnectAttempts = 5;
+
+// Initialize terminal
+function initTerminal() {
+    terminal = new Terminal({
+        cursorBlink: true,
+        fontSize: 14,
+        fontFamily: 'Consolas, "Courier New", monospace',
+        theme: {
+            background: '#1e1e1e',
+            foreground: '#ffffff',
+            cursor: '#ffffff',
+            selection: '#3e3e3e',
+            black: '#000000',
+            red: '#cd3131',
+            green: '#0dbc79',
+            yellow: '#e5e510',
+            blue: '#2472c8',
+            magenta: '#bc3fbc',
+            cyan: '#11a8cd',
+            white: '#e5e5e5',
+            brightBlack: '#666666',
+            brightRed: '#f14c4c',
+            brightGreen: '#23d18b',
+            brightYellow: '#f5f543',
+            brightBlue: '#3b8eea',
+            brightMagenta: '#d670d6',
+            brightCyan: '#29b8db',
+            brightWhite: '#e5e5e5'
+        }
+    });
+    
+    // Add fit addon
+    fitAddon = new FitAddon.FitAddon();
+    terminal.loadAddon(fitAddon);
+    
+    // Add web links addon
+    terminal.loadAddon(new WebLinksAddon.WebLinksAddon());
+    
+    // Open terminal
+    terminal.open(document.getElementById('terminal'));
+    fitAddon.fit();
+    
+    // Handle terminal input
+    terminal.onData(data => {
+        if (websocket && websocket.readyState === WebSocket.OPEN) {
+            websocket.send(JSON.stringify({
+                'type': 'command',
+                'data': data
+            }));
+        }
+    });
+    
+    // Handle terminal resize
+    terminal.onResize(size => {
+        if (websocket && websocket.readyState === WebSocket.OPEN) {
+            websocket.send(JSON.stringify({
+                'type': 'resize',
+                'cols': size.cols,
+                'rows': size.rows
+            }));
+        }
+    });
+}
+
+// Connect to WebSocket
+function connectWebSocket() {
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${protocol}//${window.location.host}/ws/terminal/{{ server.id }}/`;
+    
+    websocket = new WebSocket(wsUrl);
+    
+    websocket.onopen = function(event) {
+        console.log('WebSocket connected');
+        isConnected = true;
+        reconnectAttempts = 0;
+        updateConnectionStatus('Connected', true);
+        hideConnectionOverlay();
+        terminal.focus();
+    };
+    
+    websocket.onmessage = function(event) {
+        const data = JSON.parse(event.data);
+        
+        if (data.type === 'output') {
+            terminal.write(data.data);
+        } else if (data.type === 'error') {
+            terminal.write(`\r\n\x1b[31mError: ${data.message}\x1b[0m\r\n`);
+            updateConnectionStatus('Error', false);
+        } else if (data.type === 'disconnect') {
+            terminal.write(`\r\n\x1b[33mConnection closed: ${data.message}\x1b[0m\r\n`);
+            updateConnectionStatus('Disconnected', false);
+        }
+    };
+    
+    websocket.onclose = function(event) {
+        console.log('WebSocket closed');
+        isConnected = false;
+        updateConnectionStatus('Disconnected', false);
+        
+        if (reconnectAttempts < maxReconnectAttempts) {
+            setTimeout(() => {
+                reconnectAttempts++;
+                showConnectionOverlay(`Reconnecting... (${reconnectAttempts}/${maxReconnectAttempts})`);
+                connectWebSocket();
+            }, 2000);
+        } else {
+            showConnectionOverlay('Connection failed. Please refresh the page.');
+        }
+    };
+    
+    websocket.onerror = function(error) {
+        console.error('WebSocket error:', error);
+        updateConnectionStatus('Error', false);
+    };
+}
+
+// Update connection status
+function updateConnectionStatus(status, connected) {
+    const statusElement = document.getElementById('connectionStatus');
+    const indicatorElement = document.getElementById('statusIndicator');
+    
+    statusElement.textContent = status;
+    
+    if (connected) {
+        indicatorElement.classList.remove('disconnected');
+    } else {
+        indicatorElement.classList.add('disconnected');
+    }
+}
+
+// Show/hide connection overlay
+function showConnectionOverlay(message = 'Connecting...') {
+    const overlay = document.getElementById('connectionOverlay');
+    overlay.querySelector('h5').textContent = message;
+    overlay.style.display = 'flex';
+}
+
+function hideConnectionOverlay() {
+    document.getElementById('connectionOverlay').style.display = 'none';
+}
+
+// Terminal actions
+function sendCommand(command) {
+    if (websocket && websocket.readyState === WebSocket.OPEN) {
+        websocket.send(JSON.stringify({
+            'type': 'command',
+            'data': command + '\r'
+        }));
+    }
+}
+
+function clearTerminal() {
+    terminal.clear();
+}
+
+function closeTerminal() {
+    if (confirm('Are you sure you want to close this terminal session?')) {
+        window.location.href = '{% url "servers:list" %}';
+    }
+}
+
+function minimizeTerminal() {
+    // Implement minimize functionality
+    console.log('Minimize terminal');
+}
+
+function maximizeTerminal() {
+    // Toggle fullscreen
+    const terminalWrapper = document.querySelector('.terminal-wrapper');
+    terminalWrapper.classList.toggle('fullscreen');
+    setTimeout(() => fitAddon.fit(), 100);
+}
+
+function reconnect() {
+    if (websocket) {
+        websocket.close();
+    }
+    showConnectionOverlay('Reconnecting...');
+    setTimeout(() => {
+        connectWebSocket();
+    }, 1000);
+}
+
+function disconnect() {
+    if (websocket) {
+        websocket.close();
+    }
+    window.location.href = '{% url "servers:list" %}';
+}
+
+function downloadLog() {
+    // Implement log download functionality
+    const content = terminal.getSelection();
+    if (content) {
+        const blob = new Blob([content], { type: 'text/plain' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `terminal-log-{{ server.name }}-${new Date().toISOString().slice(0, 19)}.txt`;
+        a.click();
+        window.URL.revokeObjectURL(url);
+    } else {
+        alert('No content selected. Please select text in the terminal first.');
+    }
+}
+
+// Handle window resize
+window.addEventListener('resize', () => {
+    if (fitAddon) {
+        fitAddon.fit();
+    }
+});
+
+// Handle page unload
+window.addEventListener('beforeunload', () => {
+    if (websocket) {
+        websocket.close();
+    }
+});
+
+// Initialize everything when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    initTerminal();
+    connectWebSocket();
+});
+</script>
+{% endblock %}

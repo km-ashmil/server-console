@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}Register - Server Management{% endblock %}
+
+{% block auth_content %}
+<div class="card shadow">
+    <div class="card-body p-5">
+        <div class="text-center mb-4">
+            <h2 class="card-title">
+                <i class="bi bi-person-plus text-primary"></i>
+                Create Account
+            </h2>
+            <p class="text-muted">Join us and start managing your servers today!</p>
+        </div>
+        
+        {% crispy form %}
+        
+        <div class="text-center mt-4">
+            <p class="mb-0">
+                Already have an account? 
+                <a href="{% url 'authentication:login' %}" class="text-decoration-none">Sign in here</a>
+            </p>
+        </div>
+    </div>
+</div>
+{% endblock %}

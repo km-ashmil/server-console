@@ -1,0 +1,246 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}Edit Profile - {{ user.username }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <!-- Header -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h2><i class="bi bi-pencil-square"></i> Edit Profile</h2>
+                    <p class="text-muted mb-0">Update your personal information and preferences</p>
+                </div>
+                <a href="{% url 'authentication:profile' %}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left"></i> Back to Profile
+                </a>
+            </div>
+
+            <!-- Edit Form -->
+            <div class="row justify-content-center">
+                <div class="col-lg-8">
+                    <div class="card shadow-sm">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="card-title mb-0">
+                                <i class="bi bi-person-gear"></i> Personal Information
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <form method="post">
+                                {% csrf_token %}
+                                
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            {{ form.username|as_crispy_field }}
+                                        </div>
+                                        <div class="mb-3">
+                                            {{ form.first_name|as_crispy_field }}
+                                        </div>
+                                        <div class="mb-3">
+                                            {{ form.email|as_crispy_field }}
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            {{ form.last_name|as_crispy_field }}
+                                        </div>
+                                        
+                                        <!-- Account Information (Read-only) -->
+                                        <div class="mb-3">
+                                            <label class="form-label text-muted">Date Joined</label>
+                                            <input type="text" class="form-control" value="{{ user.date_joined|date:'F d, Y' }}" readonly>
+                                        </div>
+                                        
+                                        <div class="mb-3">
+                                            <label class="form-label text-muted">Last Login</label>
+                                            <input type="text" class="form-control" value="{{ user.last_login|date:'F d, Y g:i A'|default:'Never' }}" readonly>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <hr class="my-4">
+                                
+                                <!-- Form Actions -->
+                                <div class="d-flex justify-content-between">
+                                    <div>
+                                        <button type="submit" class="btn btn-primary me-2">
+                                            <i class="bi bi-check-lg"></i> Save Changes
+                                        </button>
+                                        <a href="{% url 'authentication:profile' %}" class="btn btn-outline-secondary">
+                                            <i class="bi bi-x-lg"></i> Cancel
+                                        </a>
+                                    </div>
+                                    <div>
+                                        <a href="{% url 'authentication:change_password' %}" class="btn btn-outline-warning">
+                                            <i class="bi bi-key"></i> Change Password
+                                        </a>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                    
+                    <!-- Additional Information Card -->
+                    <div class="card shadow-sm mt-4">
+                        <div class="card-header bg-info text-white">
+                            <h5 class="card-title mb-0">
+                                <i class="bi bi-info-circle"></i> Account Information
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="text-center">
+                                        <h6 class="text-muted">Account Status</h6>
+                                        {% if user.is_active %}
+                                            <span class="badge bg-success fs-6">Active</span>
+                                        {% else %}
+                                            <span class="badge bg-danger fs-6">Inactive</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="text-center">
+                                        <h6 class="text-muted">Staff Status</h6>
+                                        {% if user.is_staff %}
+                                            <span class="badge bg-info fs-6">Staff Member</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary fs-6">Regular User</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="text-center">
+                                        <h6 class="text-muted">Permissions</h6>
+                                        {% if user.is_superuser %}
+                                            <span class="badge bg-danger fs-6">Superuser</span>
+                                        {% else %}
+                                            <span class="badge bg-success fs-6">Standard</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <hr class="my-3">
+                            
+                            <div class="alert alert-light" role="alert">
+                                <i class="bi bi-lightbulb"></i>
+                                <strong>Tips:</strong>
+                                <ul class="mb-0 mt-2">
+                                    <li>Use a valid email address to receive important notifications</li>
+                                    <li>Your username is used for login and cannot contain spaces</li>
+                                    <li>First and last names are optional but help personalize your experience</li>
+                                    <li>Consider changing your password regularly for better security</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.card {
+    border: none;
+    border-radius: 0.75rem;
+}
+
+.card-header {
+    border-radius: 0.75rem 0.75rem 0 0 !important;
+    border-bottom: none;
+}
+
+.badge {
+    font-size: 0.875rem;
+    padding: 0.5rem 1rem;
+}
+
+.form-control[readonly] {
+    background-color: #f8f9fa;
+    border-color: #dee2e6;
+}
+
+.alert-light {
+    background-color: #f8f9fa;
+    border-color: #dee2e6;
+    color: #495057;
+}
+
+.text-muted {
+    font-weight: 500;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Form validation and user feedback
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.querySelector('form');
+    const submitBtn = document.querySelector('button[type="submit"]');
+    
+    // Add form validation feedback
+    form.addEventListener('submit', function(e) {
+        submitBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Saving...';
+        submitBtn.disabled = true;
+    });
+    
+    // Email validation
+    const emailField = document.getElementById('id_email');
+    if (emailField) {
+        emailField.addEventListener('blur', function() {
+            const email = this.value;
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            
+            if (email && !emailRegex.test(email)) {
+                this.classList.add('is-invalid');
+                if (!this.nextElementSibling || !this.nextElementSibling.classList.contains('invalid-feedback')) {
+                    const feedback = document.createElement('div');
+                    feedback.className = 'invalid-feedback';
+                    feedback.textContent = 'Please enter a valid email address.';
+                    this.parentNode.appendChild(feedback);
+                }
+            } else {
+                this.classList.remove('is-invalid');
+                const feedback = this.parentNode.querySelector('.invalid-feedback');
+                if (feedback) {
+                    feedback.remove();
+                }
+            }
+        });
+    }
+    
+    // Username validation
+    const usernameField = document.getElementById('id_username');
+    if (usernameField) {
+        usernameField.addEventListener('input', function() {
+            const username = this.value;
+            const usernameRegex = /^[a-zA-Z0-9_]+$/;
+            
+            if (username && !usernameRegex.test(username)) {
+                this.classList.add('is-invalid');
+                if (!this.nextElementSibling || !this.nextElementSibling.classList.contains('invalid-feedback')) {
+                    const feedback = document.createElement('div');
+                    feedback.className = 'invalid-feedback';
+                    feedback.textContent = 'Username can only contain letters, numbers, and underscores.';
+                    this.parentNode.appendChild(feedback);
+                }
+            } else {
+                this.classList.remove('is-invalid');
+                const feedback = this.parentNode.querySelector('.invalid-feedback');
+                if (feedback) {
+                    feedback.remove();
+                }
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,538 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}Server Logs - {{ server.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <!-- Header -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h2><i class="bi bi-file-text"></i> Server Logs</h2>
+                    <p class="text-muted mb-0">{{ server.name }} ({{ server.host }}:{{ server.port }})</p>
+                </div>
+                <div>
+                    <a href="{% url 'servers:detail' server.pk %}" class="btn btn-outline-secondary me-2">
+                        <i class="bi bi-arrow-left"></i> Back to Server
+                    </a>
+                    <a href="{% url 'terminal:connect' server.pk %}" class="btn btn-primary">
+                        <i class="bi bi-terminal"></i> Connect Terminal
+                    </a>
+                </div>
+            </div>
+
+            <!-- Filters -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-funnel"></i> Filters & Search
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="get" class="row g-3">
+                        <div class="col-md-3">
+                            <label for="log_type" class="form-label">Log Type</label>
+                            <select class="form-select" id="log_type" name="log_type">
+                                <option value="">All Types</option>
+                                <option value="connection" {% if request.GET.log_type == 'connection' %}selected{% endif %}>Connection</option>
+                                <option value="command" {% if request.GET.log_type == 'command' %}selected{% endif %}>Command</option>
+                                <option value="error" {% if request.GET.log_type == 'error' %}selected{% endif %}>Error</option>
+                                <option value="info" {% if request.GET.log_type == 'info' %}selected{% endif %}>Info</option>
+                                <option value="warning" {% if request.GET.log_type == 'warning' %}selected{% endif %}>Warning</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="date_from" class="form-label">From Date</label>
+                            <input type="date" class="form-control" id="date_from" name="date_from" value="{{ request.GET.date_from }}">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="date_to" class="form-label">To Date</label>
+                            <input type="date" class="form-control" id="date_to" name="date_to" value="{{ request.GET.date_to }}">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="search" class="form-label">Search</label>
+                            <input type="text" class="form-control" id="search" name="search" placeholder="Search logs..." value="{{ request.GET.search }}">
+                        </div>
+                        <div class="col-12">
+                            <button type="submit" class="btn btn-primary me-2">
+                                <i class="bi bi-search"></i> Apply Filters
+                            </button>
+                            <a href="{% url 'terminal:logs' server.pk %}" class="btn btn-outline-secondary me-2">
+                                <i class="bi bi-x-lg"></i> Clear Filters
+                            </a>
+                            <button type="button" class="btn btn-outline-info me-2" onclick="exportLogs()">
+                                <i class="bi bi-download"></i> Export
+                            </button>
+                            <button type="button" class="btn btn-outline-success" onclick="refreshLogs()">
+                                <i class="bi bi-arrow-clockwise"></i> Refresh
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Statistics -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card bg-primary text-white">
+                        <div class="card-body text-center">
+                            <h4>{{ total_logs }}</h4>
+                            <p class="mb-0">Total Logs</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-success text-white">
+                        <div class="card-body text-center">
+                            <h4>{{ connection_logs }}</h4>
+                            <p class="mb-0">Connections</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-info text-white">
+                        <div class="card-body text-center">
+                            <h4>{{ command_logs }}</h4>
+                            <p class="mb-0">Commands</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-danger text-white">
+                        <div class="card-body text-center">
+                            <h4>{{ error_logs }}</h4>
+                            <p class="mb-0">Errors</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Logs Table -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-light">
+                    <div class="row align-items-center">
+                        <div class="col">
+                            <h5 class="card-title mb-0">
+                                <i class="bi bi-list-ul"></i> Activity Logs
+                                {% if logs %}
+                                    <span class="badge bg-secondary">{{ logs|length }} of {{ total_logs }}</span>
+                                {% endif %}
+                            </h5>
+                        </div>
+                        <div class="col-auto">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="autoRefresh">
+                                <label class="form-check-label" for="autoRefresh">
+                                    Auto-refresh
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    {% if logs %}
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th width="15%">Timestamp</th>
+                                        <th width="10%">Type</th>
+                                        <th width="15%">User</th>
+                                        <th width="50%">Message</th>
+                                        <th width="10%">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="logsTableBody">
+                                    {% for log in logs %}
+                                    <tr class="log-row" data-log-type="{{ log.log_type }}">
+                                        <td>
+                                            <span class="timestamp" title="{{ log.timestamp|date:'Y-m-d H:i:s' }}">
+                                                {{ log.timestamp|date:'M d, H:i' }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            {% if log.log_type == 'connection' %}
+                                                <span class="badge bg-success">Connection</span>
+                                            {% elif log.log_type == 'command' %}
+                                                <span class="badge bg-info">Command</span>
+                                            {% elif log.log_type == 'error' %}
+                                                <span class="badge bg-danger">Error</span>
+                                            {% elif log.log_type == 'warning' %}
+                                                <span class="badge bg-warning text-dark">Warning</span>
+                                            {% else %}
+                                                <span class="badge bg-secondary">{{ log.log_type|title }}</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if log.user %}
+                                                <div class="d-flex align-items-center">
+                                                    <i class="bi bi-person-circle me-1"></i>
+                                                    {{ log.user.username }}
+                                                </div>
+                                            {% else %}
+                                                <span class="text-muted">System</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <div class="log-message">
+                                                {% if log.log_type == 'command' %}
+                                                    <code class="command-text">{{ log.message }}</code>
+                                                {% elif log.log_type == 'error' %}
+                                                    <span class="text-danger">{{ log.message }}</span>
+                                                {% else %}
+                                                    {{ log.message }}
+                                                {% endif %}
+                                            </div>
+                                            {% if log.details %}
+                                                <small class="text-muted d-block mt-1">{{ log.details|truncatechars:100 }}</small>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if log.details %}
+                                                <button class="btn btn-sm btn-outline-info" 
+                                                        onclick="showLogDetails({{ log.id }})" 
+                                                        title="View Details">
+                                                    <i class="bi bi-eye"></i>
+                                                </button>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="bi bi-file-text fs-1 text-muted"></i>
+                            <h5 class="mt-3 text-muted">No Logs Found</h5>
+                            <p class="text-muted">No activity logs match your current filters.</p>
+                            {% if request.GET %}
+                                <a href="{% url 'terminal:logs' server.pk %}" class="btn btn-outline-primary">
+                                    <i class="bi bi-x-lg"></i> Clear Filters
+                                </a>
+                            {% endif %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Pagination -->
+            {% if is_paginated %}
+                <nav aria-label="Logs pagination" class="mt-4">
+                    <ul class="pagination justify-content-center">
+                        {% if page_obj.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page=1">&laquo; First</a>
+                            </li>
+                            <li class="page-item">
+                                <a class="page-link" href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ page_obj.previous_page_number }}">Previous</a>
+                            </li>
+                        {% endif %}
+                        
+                        <li class="page-item active">
+                            <span class="page-link">
+                                Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+                            </span>
+                        </li>
+                        
+                        {% if page_obj.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ page_obj.next_page_number }}">Next</a>
+                            </li>
+                            <li class="page-item">
+                                <a class="page-link" href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ page_obj.paginator.num_pages }}">Last &raquo;</a>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Log Details Modal -->
+<div class="modal fade" id="logDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Log Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="logDetailsContent">
+                    <div class="text-center">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.card {
+    border: none;
+    border-radius: 0.75rem;
+}
+
+.card-header {
+    border-radius: 0.75rem 0.75rem 0 0 !important;
+    border-bottom: 1px solid rgba(0,0,0,.125);
+}
+
+.log-message {
+    word-break: break-word;
+    max-width: 400px;
+}
+
+.command-text {
+    background-color: #f8f9fa;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    font-family: 'Courier New', monospace;
+    font-size: 0.875rem;
+}
+
+.timestamp {
+    font-family: 'Courier New', monospace;
+    font-size: 0.875rem;
+}
+
+.badge {
+    font-size: 0.75rem;
+}
+
+.table th {
+    border-top: none;
+    font-weight: 600;
+    color: #495057;
+}
+
+.log-row:hover {
+    background-color: #f8f9fa;
+}
+
+.btn-sm {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let autoRefreshInterval;
+
+// Auto-refresh functionality
+function startAutoRefresh() {
+    autoRefreshInterval = setInterval(refreshLogs, 30000); // Refresh every 30 seconds
+}
+
+function stopAutoRefresh() {
+    if (autoRefreshInterval) {
+        clearInterval(autoRefreshInterval);
+    }
+}
+
+// Refresh logs
+function refreshLogs() {
+    const currentUrl = new URL(window.location.href);
+    
+    fetch(currentUrl.href, {
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.text())
+    .then(html => {
+        // Parse the response and update the table
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        const newTableBody = doc.getElementById('logsTableBody');
+        
+        if (newTableBody) {
+            document.getElementById('logsTableBody').innerHTML = newTableBody.innerHTML;
+        }
+        
+        // Update statistics cards
+        const statsCards = doc.querySelectorAll('.card h4');
+        const currentStatsCards = document.querySelectorAll('.card h4');
+        
+        statsCards.forEach((card, index) => {
+            if (currentStatsCards[index]) {
+                currentStatsCards[index].textContent = card.textContent;
+            }
+        });
+        
+        console.log('Logs refreshed at', new Date().toLocaleTimeString());
+    })
+    .catch(error => {
+        console.error('Error refreshing logs:', error);
+    });
+}
+
+// Show log details
+function showLogDetails(logId) {
+    const modal = new bootstrap.Modal(document.getElementById('logDetailsModal'));
+    const contentDiv = document.getElementById('logDetailsContent');
+    
+    // Show loading state
+    contentDiv.innerHTML = `
+        <div class="text-center">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2">Loading log details...</p>
+        </div>
+    `;
+    
+    modal.show();
+    
+    // Fetch log details (this would need to be implemented in the backend)
+    fetch(`/api/logs/${logId}/details/`, {
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        contentDiv.innerHTML = `
+            <div class="row">
+                <div class="col-md-6">
+                    <h6>Timestamp</h6>
+                    <p>${data.timestamp}</p>
+                    
+                    <h6>Type</h6>
+                    <p><span class="badge bg-${getBadgeColor(data.log_type)}">${data.log_type}</span></p>
+                    
+                    <h6>User</h6>
+                    <p>${data.user || 'System'}</p>
+                </div>
+                <div class="col-md-6">
+                    <h6>Server</h6>
+                    <p>${data.server_name}</p>
+                    
+                    <h6>Session ID</h6>
+                    <p>${data.session_id || 'N/A'}</p>
+                    
+                    <h6>IP Address</h6>
+                    <p>${data.ip_address || 'N/A'}</p>
+                </div>
+            </div>
+            
+            <hr>
+            
+            <h6>Message</h6>
+            <div class="alert alert-light">
+                <pre class="mb-0">${data.message}</pre>
+            </div>
+            
+            ${data.details ? `
+                <h6>Details</h6>
+                <div class="alert alert-info">
+                    <pre class="mb-0">${data.details}</pre>
+                </div>
+            ` : ''}
+            
+            ${data.stack_trace ? `
+                <h6>Stack Trace</h6>
+                <div class="alert alert-danger">
+                    <pre class="mb-0">${data.stack_trace}</pre>
+                </div>
+            ` : ''}
+        `;
+    })
+    .catch(error => {
+        contentDiv.innerHTML = `
+            <div class="alert alert-danger" role="alert">
+                <i class="bi bi-exclamation-triangle"></i>
+                <strong>Error!</strong><br>
+                Failed to load log details: ${error.message}
+            </div>
+        `;
+    });
+}
+
+// Export logs
+function exportLogs() {
+    const currentUrl = new URL(window.location.href);
+    currentUrl.searchParams.set('export', 'csv');
+    
+    // Create a temporary link and click it to download
+    const link = document.createElement('a');
+    link.href = currentUrl.href;
+    link.download = `server_logs_${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+// Utility function to get badge color
+function getBadgeColor(logType) {
+    switch(logType) {
+        case 'connection': return 'success';
+        case 'command': return 'info';
+        case 'error': return 'danger';
+        case 'warning': return 'warning';
+        default: return 'secondary';
+    }
+}
+
+// Initialize page
+document.addEventListener('DOMContentLoaded', function() {
+    // Auto-refresh toggle
+    const autoRefreshToggle = document.getElementById('autoRefresh');
+    
+    autoRefreshToggle.addEventListener('change', function() {
+        if (this.checked) {
+            startAutoRefresh();
+        } else {
+            stopAutoRefresh();
+        }
+    });
+    
+    // Set today as default for date inputs if empty
+    const dateFromInput = document.getElementById('date_from');
+    const dateToInput = document.getElementById('date_to');
+    
+    if (!dateFromInput.value) {
+        const oneWeekAgo = new Date();
+        oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+        dateFromInput.value = oneWeekAgo.toISOString().split('T')[0];
+    }
+    
+    if (!dateToInput.value) {
+        const today = new Date();
+        dateToInput.value = today.toISOString().split('T')[0];
+    }
+    
+    // Real-time search
+    const searchInput = document.getElementById('search');
+    let searchTimeout;
+    
+    searchInput.addEventListener('input', function() {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+            // Auto-submit form after 500ms of no typing
+            if (this.value.length >= 3 || this.value.length === 0) {
+                this.form.submit();
+            }
+        }, 500);
+    });
+});
+
+// Cleanup on page unload
+window.addEventListener('beforeunload', function() {
+    stopAutoRefresh();
+});
+</script>
+{% endblock %}
