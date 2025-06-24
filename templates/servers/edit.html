@@ -84,32 +84,39 @@
 
 {% block extra_js %}
 <script>
-// Dynamic form field visibility based on auth method
-document.addEventListener('DOMContentLoaded', function() {
-    const authMethodField = document.getElementById('id_auth_method');
-    const passwordField = document.getElementById('id_password').closest('.form-group');
-    const privateKeyField = document.getElementById('id_private_key').closest('.form-group');
-    const keyPasswordField = document.getElementById('id_key_password').closest('.form-group');
+// Toggle authentication method fields
+function toggleAuthMethod() {
+    const authMethod = document.querySelector('select[name="auth_method"]');
+    const passwordAuth = document.getElementById('password-auth');
+    const keyAuth = document.getElementById('key-auth');
     
-    function toggleAuthFields() {
-        const authMethod = authMethodField.value;
-        
-        if (authMethod === 'password') {
-            passwordField.style.display = 'block';
-            privateKeyField.style.display = 'none';
-            keyPasswordField.style.display = 'none';
-        } else if (authMethod === 'key') {
-            passwordField.style.display = 'none';
-            privateKeyField.style.display = 'block';
-            keyPasswordField.style.display = 'block';
+    if (authMethod && authMethod.value === 'password') {
+        passwordAuth.style.display = 'block';
+        keyAuth.style.display = 'none';
+    } else if (authMethod && (authMethod.value === 'key' || authMethod.value === 'key_password')) {
+        if (authMethod.value === 'key_password') {
+            passwordAuth.style.display = 'block';
+        } else {
+            passwordAuth.style.display = 'none';
         }
+        keyAuth.style.display = 'block';
+    } else {
+        // Hide both if no auth method selected
+        passwordAuth.style.display = 'none';
+        keyAuth.style.display = 'none';
+    }
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    // Add event listeners to auth method select
+    const authMethodSelect = document.querySelector('select[name="auth_method"]');
+    if (authMethodSelect) {
+        authMethodSelect.addEventListener('change', toggleAuthMethod);
     }
     
     // Initial toggle
-    toggleAuthFields();
-    
-    // Toggle on change
-    authMethodField.addEventListener('change', toggleAuthFields);
+    toggleAuthMethod();
 });
 
 // Test connection function
