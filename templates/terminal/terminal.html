@@ -169,32 +169,34 @@
                         </div>
                     </div>
                     
-                    <!-- Terminal Header -->
-                    <div class="terminal-header">
-                        <div class="terminal-controls">
-                            <button class="terminal-btn close" onclick="closeTerminal()"></button>
-                            <button class="terminal-btn minimize" onclick="minimizeTerminal()"></button>
-                            <button class="terminal-btn maximize" onclick="maximizeTerminal()"></button>
-                        </div>
-                        <div class="terminal-info">
-                            <span>{{ server.username }}@{{ server.host }}</span>
-                            <div class="terminal-status">
-                                <div class="status-indicator" id="statusIndicator"></div>
-                                <span id="connectionStatus">Connecting...</span>
-                            </div>
-                        </div>
-                        <div class="terminal-controls">
-                            <button class="btn btn-sm btn-outline-light" onclick="clearTerminal()" title="Clear Terminal">
-                                <i class="bi bi-arrow-clockwise"></i>
+                    <!-- Terminal Controls -->
+                    <div class="terminal-controls d-flex flex-wrap justify-content-between align-items-center mb-2">
+                        <div class="d-flex mb-2 mb-md-0">
+                            <button id="clearBtn" class="btn btn-sm btn-outline-secondary me-1" onclick="clearTerminal()">
+                                <i class="bi bi-trash"></i> <span class="d-none d-sm-inline">Clear</span>
                             </button>
-                            <button class="btn btn-sm btn-outline-light" onclick="downloadLog()" title="Download Log">
-                                <i class="bi bi-download"></i>
+                            <button id="downloadBtn" class="btn btn-sm btn-outline-secondary" onclick="downloadLog()">
+                                <i class="bi bi-download"></i> <span class="d-none d-sm-inline">Download Log</span>
+                            </button>
+                        </div>
+                        <div class="d-flex align-items-center">
+                            <span id="connectionStatus" class="badge status-badge status-unknown me-2">
+                                <i class="bi bi-circle-fill me-1" id="statusIndicator"></i> <span class="d-none d-sm-inline">Disconnected</span>
+                            </span>
+                            <button id="minimizeBtn" class="btn btn-sm btn-outline-secondary me-1" onclick="minimizeTerminal()">
+                                <i class="bi bi-dash"></i>
+                            </button>
+                            <button id="maximizeBtn" class="btn btn-sm btn-outline-secondary me-1" onclick="maximizeTerminal()">
+                                <i class="bi bi-arrows-fullscreen"></i>
+                            </button>
+                            <button id="closeBtn" class="btn btn-sm btn-outline-danger" onclick="closeTerminal()">
+                                <i class="bi bi-x"></i>
                             </button>
                         </div>
                     </div>
                     
                     <!-- Terminal Content -->
-                    <div id="terminal"></div>
+                    <div id="terminal" style="width: 100%; max-width: 100%;"></div>
                 </div>
                 
                 <!-- Terminal Actions -->
@@ -202,35 +204,35 @@
                     <div class="row align-items-center">
                         <div class="col-md-8">
                             <label class="form-label mb-2">Quick Commands:</label>
-                            <div class="quick-commands">
-                                <button class="btn btn-outline-secondary quick-command" onclick="sendCommand('ls -la')">
+                            <div class="quick-commands d-flex flex-wrap">
+                                <button class="btn btn-outline-secondary quick-command mb-1 me-1" onclick="sendCommand('ls -la')">
                                     ls -la
                                 </button>
-                                <button class="btn btn-outline-secondary quick-command" onclick="sendCommand('top')">
+                                <button class="btn btn-outline-secondary quick-command mb-1 me-1" onclick="sendCommand('top -b -n 1')">
                                     top
                                 </button>
-                                <button class="btn btn-outline-secondary quick-command" onclick="sendCommand('df -h')">
+                                <button class="btn btn-outline-secondary quick-command mb-1 me-1" onclick="sendCommand('df -h')">
                                     df -h
                                 </button>
-                                <button class="btn btn-outline-secondary quick-command" onclick="sendCommand('ps aux')">
+                                <button class="btn btn-outline-secondary quick-command mb-1 me-1" onclick="sendCommand('ps aux')">
                                     ps aux
                                 </button>
-                                <button class="btn btn-outline-secondary quick-command" onclick="sendCommand('free -m')">
+                                <button class="btn btn-outline-secondary quick-command mb-1 me-1" onclick="sendCommand('free -m')">
                                     free -m
                                 </button>
-                                <button class="btn btn-outline-secondary quick-command" onclick="sendCommand('uname -a')">
+                                <button class="btn btn-outline-secondary quick-command mb-1" onclick="sendCommand('uname -a')">
                                     uname -a
                                 </button>
                             </div>
                         </div>
                         <div class="col-md-4 text-md-end">
-                            <button class="btn btn-outline-warning" onclick="reconnect()">
-                                <i class="bi bi-arrow-repeat"></i> Reconnect
-                            </button>
-                            <button class="btn btn-outline-danger" onclick="disconnect()">
-                                <i class="bi bi-x-circle"></i> Disconnect
-                            </button>
-                        </div>
+            <button class="btn btn-outline-warning" onclick="reconnect()">
+                <i class="bi bi-arrow-repeat"></i> <span class="d-none d-sm-inline">Reconnect</span>
+            </button>
+            <button class="btn btn-outline-danger" onclick="disconnect()">
+                <i class="bi bi-x-circle"></i> <span class="d-none d-sm-inline">Disconnect</span>
+            </button>
+        </div>
                     </div>
                 </div>
             </div>
@@ -458,9 +460,20 @@ function downloadLog() {
 }
 
 // Handle window resize
-window.addEventListener('resize', () => {
+window.addEventListener('resize', function() {
     if (fitAddon) {
-        fitAddon.fit();
+        setTimeout(function() {
+            fitAddon.fit();
+        }, 100); // Small delay to ensure proper resizing
+    }
+});
+
+// Handle orientation change for mobile devices
+window.addEventListener('orientationchange', function() {
+    if (fitAddon) {
+        setTimeout(function() {
+            fitAddon.fit();
+        }, 250); // Longer delay for orientation changes
     }
 });
 
