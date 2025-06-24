@@ -112,6 +112,13 @@ class CustomRegistrationForm(UserCreationForm):
         return user
 
 class ProfileUpdateForm(forms.ModelForm):
+    username = forms.CharField(
+        max_length=150,
+        required=True,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control'
+        })
+    )
     email = forms.EmailField(
         required=True,
         widget=forms.EmailInput(attrs={
@@ -121,7 +128,7 @@ class ProfileUpdateForm(forms.ModelForm):
 
     class Meta:
         model = User
-        fields = ('first_name', 'last_name', 'email')
+        fields = ('username', 'first_name', 'last_name', 'email')
         widgets = {
             'first_name': forms.TextInput(attrs={'class': 'form-control'}),
             'last_name': forms.TextInput(attrs={'class': 'form-control'}),
@@ -132,6 +139,7 @@ class ProfileUpdateForm(forms.ModelForm):
         self.helper = FormHelper()
         self.helper.form_method = 'post'
         self.helper.layout = Layout(
+            Field('username', css_class='mb-3'),
             Row(
                 Column('first_name', css_class='form-group col-md-6 mb-3'),
                 Column('last_name', css_class='form-group col-md-6 mb-3'),
