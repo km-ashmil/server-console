@@ -38,8 +38,24 @@ class TerminalConsumer(AsyncWebsocketConsumer):
             await self.close()
             return
         
-        # Generate session ID
-        self.session_id = str(uuid.uuid4())
+        # Get or generate session ID
+        if 'session_id' in self.scope['url_route']['kwargs']:
+            # Use existing session ID from URL
+            self.session_id = self.scope['url_route']['kwargs']['session_id']
+            
+            # Check if this session exists
+            existing_connection = await self.get_connection_by_session_id(self.session_id)
+            if existing_connection and existing_connection.is_active:
+                # Update the existing connection
+                self.connection_obj = existing_connection
+            else:
+                # Create a new connection record with the provided session ID
+                await self.create_connection_record()
+        else:
+            # Generate new session ID
+            self.session_id = str(uuid.uuid4())
+            # Create connection record
+            await self.create_connection_record()
         
         # Join room group
         self.room_group_name = f'terminal_{self.server_id}_{self.session_id}'
@@ -49,9 +65,6 @@ class TerminalConsumer(AsyncWebsocketConsumer):
         )
         
         await self.accept()
-        
-        # Create connection record
-        await self.create_connection_record()
         
         # Send initial message
         await self.send(text_data=json.dumps({
@@ -273,12 +286,25 @@ class TerminalConsumer(AsyncWebsocketConsumer):
             return None
 
     @database_sync_to_async
+    def get_connection_by_session_id(self, session_id):
+        """Get connection record by session ID"""
+        try:
+            return ServerConnection.objects.get(
+                session_id=session_id,
+                server=self.server,
+                user=self.user
+            )
+        except ServerConnection.DoesNotExist:
+            return None
+
+    @database_sync_to_async
     def create_connection_record(self):
         """Create connection record"""
         self.connection_obj = ServerConnection.objects.create(
             server=self.server,
             user=self.user,
-            session_id=self.session_id
+            session_id=self.session_id,
+            is_active=True
         )
 
     @database_sync_to_async
