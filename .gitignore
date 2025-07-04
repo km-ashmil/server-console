@@ -1,5 +1,4 @@
 # Django #
-*.log
 *.pot
 *.pyc
 __pycache__/
@@ -7,6 +6,10 @@ local_settings.py
 db.sqlite3
 db.sqlite3-journal
 media
+
+# Logs
+logs/*
+!logs/.gitkeep
 
 # If your project has a virtual environment
 venv/
@@ -57,7 +60,6 @@ coverage.xml
 *.mo
 
 # Django stuff:
-*.log
 local_settings.py
 
 # Flask stuff:
@@ -139,6 +141,7 @@ Thumbs.db
 ehthumbs.db
 Desktop.ini
 $RECYCLE.BIN/
-
+.param
+.agent_memory
 # Project specific
 server_key

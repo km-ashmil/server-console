@@ -59,6 +59,7 @@ class ServerForm(forms.ModelForm):
             'description': forms.Textarea(attrs={'rows': 3}),
             'port': forms.NumberInput(attrs={'min': 1, 'max': 65535}),
             'timeout': forms.NumberInput(attrs={'min': 5, 'max': 300}),
+            'auth_method': forms.Select(attrs={'class': 'form-control'}),
         }
 
     def __init__(self, *args, **kwargs):

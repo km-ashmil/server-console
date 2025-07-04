@@ -18,6 +18,10 @@ class ServerGroup(models.Model):
 
     class Meta:
         ordering = ['name']
+        indexes = [
+            models.Index(fields=['created_by']),
+            models.Index(fields=['created_at']),
+        ]
 
 class Server(models.Model):
     AUTH_METHODS = [
@@ -33,8 +37,8 @@ class Server(models.Model):
         ('error', 'Error'),
     ]
 
-    name = models.CharField(max_length=100)
-    hostname = models.CharField(max_length=255)
+    name = models.CharField(max_length=100, db_index=True)
+    hostname = models.CharField(max_length=255, db_index=True)
     port = models.PositiveIntegerField(
         default=22,
         validators=[MinValueValidator(1), MaxValueValidator(65535)]
@@ -53,14 +57,14 @@ class Server(models.Model):
     tags = models.CharField(max_length=500, blank=True, help_text='Comma-separated tags')
     
     # Status and monitoring
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='unknown')
-    last_checked = models.DateTimeField(null=True, blank=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='unknown', db_index=True)
+    last_checked = models.DateTimeField(null=True, blank=True, db_index=True)
     last_error = models.TextField(blank=True)
     
     # Metadata
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     updated_at = models.DateTimeField(auto_now=True)
-    created_by = models.ForeignKey(User, on_delete=models.CASCADE)
+    created_by = models.ForeignKey(User, on_delete=models.CASCADE, db_index=True)
     
     # Connection settings
     timeout = models.PositiveIntegerField(default=30, help_text='Connection timeout in seconds')
@@ -69,6 +73,12 @@ class Server(models.Model):
     class Meta:
         ordering = ['name']
         unique_together = ['hostname', 'port', 'username']
+        indexes = [
+            models.Index(fields=['status', 'created_by']),
+            models.Index(fields=['group']),
+            models.Index(fields=['-created_at']),
+            models.Index(fields=['created_by', 'status']),
+        ]
 
     def __str__(self):
         return f"{self.name} ({self.hostname}:{self.port})"
@@ -145,12 +155,17 @@ class ServerConnection(models.Model):
     server = models.ForeignKey(Server, on_delete=models.CASCADE)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     session_id = models.CharField(max_length=100, unique=True)
-    connected_at = models.DateTimeField(auto_now_add=True)
-    last_activity = models.DateTimeField(auto_now=True)
-    is_active = models.BooleanField(default=True)
+    connected_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    last_activity = models.DateTimeField(auto_now=True, db_index=True)
+    is_active = models.BooleanField(default=True, db_index=True)
     
     class Meta:
         ordering = ['-connected_at']
+        indexes = [
+            models.Index(fields=['user', 'is_active']),
+            models.Index(fields=['server', 'is_active']),
+            models.Index(fields=['user', 'server']),
+        ]
 
     def __str__(self):
         return f"{self.user.username} -> {self.server.name} ({self.session_id})"
@@ -166,16 +181,20 @@ class ServerLog(models.Model):
     
     server = models.ForeignKey(Server, on_delete=models.CASCADE)
     user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
-    log_type = models.CharField(max_length=20, choices=LOG_TYPES)
+    log_type = models.CharField(max_length=20, choices=LOG_TYPES, db_index=True)
     message = models.TextField()
-    timestamp = models.DateTimeField(auto_now_add=True)
-    session_id = models.CharField(max_length=100, blank=True)
+    timestamp = models.DateTimeField(auto_now_add=True, db_index=True)
+    session_id = models.CharField(max_length=100, blank=True, db_index=True)
     
     class Meta:
         ordering = ['-timestamp']
         indexes = [
             models.Index(fields=['server', '-timestamp']),
             models.Index(fields=['user', '-timestamp']),
+            models.Index(fields=['log_type', '-timestamp']),
+            models.Index(fields=['server', 'log_type', '-timestamp']),
+            models.Index(fields=['timestamp']),  # For date-based filtering
+            models.Index(fields=['server', 'user', '-timestamp']),
         ]
 
     def __str__(self):

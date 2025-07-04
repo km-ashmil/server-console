@@ -172,7 +172,7 @@
                                         <td>
                                             <div class="btn-group btn-group-sm" role="group">
                                                 {% if session.is_active %}
-                                                    <a href="{% url 'terminal:connect' session.server.pk %}" 
+                                                    <a href="{% url 'terminal:connect' session.server.pk %}?session_id={{ session.session_id }}" 
                                                        class="btn btn-outline-primary" 
                                                        title="Connect to Terminal">
                                                         <i class="bi bi-terminal"></i>
@@ -184,7 +184,7 @@
                                                     <i class="bi bi-file-text"></i>
                                                 </a>
                                                 <button class="btn btn-outline-danger" 
-                                                        onclick="closeSession({{ session.id }})" 
+                                                        onclick="closeSession('{{ session.id }}')" 
                                                         title="Close Session">
                                                     <i class="bi bi-x-lg"></i>
                                                 </button>

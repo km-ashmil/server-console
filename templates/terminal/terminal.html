@@ -317,11 +317,61 @@ function initTerminal() {
     });
 }
 
+// Store terminal session info in localStorage when connected
+function storeTerminalSession() {
+    if (isConnected) {
+        const sessionData = {
+            serverId: '{{ server.id }}',
+            serverName: '{{ server.name }}',
+            sessionId: websocket._url.split('/').pop(), // Extract session ID from WebSocket URL
+            timestamp: new Date().getTime()
+        };
+        localStorage.setItem('terminal_session', JSON.stringify(sessionData));
+        console.log('Terminal session stored:', sessionData);
+    }
+}
+
+// Check if we should restore a previous session
+function checkForExistingSession() {
+    const sessionData = localStorage.getItem('terminal_session');
+    if (sessionData) {
+        try {
+            const session = JSON.parse(sessionData);
+            // Check if session is for current server and not too old (30 minutes)
+            const currentTime = new Date().getTime();
+            const sessionAge = currentTime - session.timestamp;
+            const maxSessionAge = 30 * 60 * 1000; // 30 minutes
+            
+            if (session.serverId === '{{ server.id }}' && sessionAge < maxSessionAge) {
+                console.log('Restoring previous session:', session);
+                return session;
+            } else {
+                // Clear outdated session
+                localStorage.removeItem('terminal_session');
+            }
+        } catch (e) {
+            console.error('Error parsing session data:', e);
+            localStorage.removeItem('terminal_session');
+        }
+    }
+    return null;
+}
+
 // Connect to WebSocket
 function connectWebSocket() {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}/ws/terminal/{{ server.id }}/`;
+    let wsUrl = `${protocol}//${window.location.host}/{{ websocket_url }}`;
     
+    // If URL doesn't already include a session ID, check for existing session
+    if (!wsUrl.match(/\/[\w-]+\/$/) && wsUrl.endsWith('/')) {
+        const existingSession = checkForExistingSession();
+        if (existingSession && existingSession.sessionId) {
+            // Use existing session ID if available
+            wsUrl = `${protocol}//${window.location.host}/ws/terminal/{{ server.id }}/${existingSession.sessionId}/`;
+        }
+    }
+    
+    console.log('Connecting to WebSocket:', wsUrl);
     websocket = new WebSocket(wsUrl);
     
     websocket.onopen = function(event) {
@@ -331,6 +381,9 @@ function connectWebSocket() {
         updateConnectionStatus('Connected', true);
         hideConnectionOverlay();
         terminal.focus();
+        
+        // Store session info
+        storeTerminalSession();
     };
     
     websocket.onmessage = function(event) {
@@ -484,10 +537,73 @@ window.addEventListener('beforeunload', () => {
     }
 });
 
+// Handle page visibility changes
+document.addEventListener('visibilitychange', function() {
+    if (document.visibilityState === 'visible') {
+        // Page is now visible, check connection
+        if (websocket && websocket.readyState !== WebSocket.OPEN) {
+            reconnect();
+        }
+    }
+});
+
+// Handle page unload - don't close the connection when navigating to other pages
+window.addEventListener('beforeunload', (event) => {
+    // Only close the connection if the user is actually leaving the site
+    // or closing the browser, not when navigating within the site
+    if (event.currentTarget.location.hostname !== window.location.hostname) {
+        if (websocket) {
+            websocket.close();
+            localStorage.removeItem('terminal_session');
+        }
+    }
+});
+
 // Initialize everything when page loads
 document.addEventListener('DOMContentLoaded', function() {
     initTerminal();
     connectWebSocket();
+    
+    // Handle window resize
+    window.addEventListener('resize', function() {
+        if (fitAddon) {
+            setTimeout(function() {
+                fitAddon.fit();
+            }, 100); // Small delay to ensure proper resizing
+        }
+    });
+    
+    // Handle orientation change on mobile
+    window.addEventListener('orientationchange', function() {
+        setTimeout(function() {
+            if (fitAddon) {
+                fitAddon.fit();
+            }
+        }, 250); // Longer delay for orientation changes
+    });
+    
+    // Handle page visibility changes
+    document.addEventListener('visibilitychange', function() {
+        if (document.visibilityState === 'visible') {
+            // Page is now visible again
+            if (!isConnected && websocket && websocket.readyState !== WebSocket.OPEN) {
+                console.log('Page visible again, reconnecting WebSocket...');
+                connectWebSocket();
+            }
+        }
+    });
+    
+    // Only close WebSocket when leaving the site entirely, not when navigating between pages
+    window.addEventListener('beforeunload', function(event) {
+        // Check if we're navigating to another page on the same site
+        const navigatingInternally = event.currentTarget.location.hostname === window.location.hostname;
+        
+        if (!navigatingInternally && websocket) {
+            // Only close the connection if we're leaving the site entirely
+            websocket.close();
+            localStorage.removeItem('terminal_session');
+        }
+    });
 });
 </script>
 {% endblock %}

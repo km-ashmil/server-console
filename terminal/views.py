@@ -9,23 +9,47 @@ def terminal_view(request, server_id):
     """Main terminal view"""
     server = get_object_or_404(Server, id=server_id, created_by=request.user)
     
+    # Check if a session_id was provided for reconnection
+    session_id = request.GET.get('session_id')
+    
+    # Construct WebSocket URL
+    websocket_url = f'ws/terminal/{server_id}/'
+    if session_id:
+        # If session_id is provided, append it to the WebSocket URL
+        websocket_url = f'ws/terminal/{server_id}/{session_id}/'
+    
     context = {
         'server': server,
-        'websocket_url': f'ws/terminal/{server_id}/'
+        'websocket_url': websocket_url
     }
     return render(request, 'terminal/terminal.html', context)
 
 @login_required
 def terminal_sessions(request):
     """List active terminal sessions"""
-    active_connections = ServerConnection.objects.filter(
+    sessions = ServerConnection.objects.filter(
         user=request.user,
         is_active=True
     ).select_related('server')
     
+    # Calculate statistics
+    total_sessions = sessions.count()
+    active_sessions = sessions.filter(is_active=True).count()
+    idle_sessions = 0  # Could implement idle detection based on last_activity
+    unique_servers = sessions.values('server').distinct().count()
+    
     context = {
-        'active_connections': active_connections
+        'sessions': sessions,
+        'total_sessions': total_sessions,
+        'active_sessions': active_sessions,
+        'idle_sessions': idle_sessions,
+        'unique_servers': unique_servers
     }
+    
+    # Handle AJAX requests for auto-refresh
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return render(request, 'terminal/sessions_table.html', context)
+    
     return render(request, 'terminal/sessions.html', context)
 
 @login_required

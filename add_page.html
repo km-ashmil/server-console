@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Server Management</title>
+    
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <!-- Custom CSS -->
+    <style>
+        :root {
+            --sidebar-width: 250px;
+            --header-height: 60px;
+        }
+        
+        body {
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        
+        /* Sidebar */
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: var(--sidebar-width);
+            height: 100vh;
+            background: linear-gradient(to bottom, #4e73df, #224abe);
+            color: #fff;
+            z-index: 1030;
+            overflow-y: auto;
+            transition: transform 0.3s ease;
+        }
+        
+        .sidebar-header {
+            height: var(--header-height);
+            display: flex;
+            align-items: center;
+            padding: 0 1rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .sidebar-nav {
+            padding: 1rem 0;
+        }
+        
+        .sidebar-nav .nav-link {
+            color: rgba(255, 255, 255, 0.8);
+            padding: 0.75rem 1rem;
+            display: flex;
+            align-items: center;
+            transition: all 0.3s;
+        }
+        
+        .sidebar-nav .nav-link:hover {
+            color: #fff;
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+        
+        .sidebar-nav .nav-link.active {
+            color: #fff;
+            background-color: rgba(255, 255, 255, 0.2);
+        }
+        
+        .sidebar-nav .nav-link i {
+            margin-right: 0.5rem;
+        }
+        
+        /* Main Content */
+        .main-content {
+            margin-left: var(--sidebar-width);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            transition: margin-left 0.3s ease;
+        }
+        
+        .top-navbar {
+            height: var(--header-height);
+            background-color: #fff;
+            border-bottom: 1px solid #e3e6f0;
+        }
+        
+        .content-wrapper {
+            flex: 1;
+            padding: 1.5rem;
+            background-color: #f8f9fc;
+        }
+        
+        /* Cards */
+        .card {
+            border: none;
+            border-radius: 0.35rem;
+            box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
+        }
+        
+        .card-header {
+            background-color: #f8f9fc;
+            border-bottom: 1px solid #e3e6f0;
+        }
+        
+        /* Buttons */
+        .btn-primary {
+            background-color: #4e73df;
+            border-color: #4e73df;
+        }
+        
+        /* Status Badges */
+        .status-badge {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        
+        .status-online {
+            background-color: #1cc88a;
+            color: #fff;
+        }
+        
+        .status-offline {
+            background-color: #e74a3b;
+            color: #fff;
+        }
+        
+        .status-error {
+            background-color: #f6c23e;
+            color: #fff;
+        }
+        
+        .status-unknown {
+            background-color: #858796;
+            color: #fff;
+        }
+        
+        /* Server Cards */
+        .server-card {
+            transition: transform 0.2s;
+        }
+        
+        .server-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        /* Terminal Window */
+        .terminal-window {
+            border-radius: 0.35rem;
+            overflow: hidden;
+            box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
+        }
+        
+        .terminal-header {
+            background-color: #343a40;
+            color: #fff;
+            padding: 0.5rem 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        /* Responsive styles */
+        @media (max-width: 767.98px) {
+            .sidebar {
+                transform: translateX(-100%);
+            }
+            
+            .sidebar.show {
+                transform: translateX(0);
+            }
+            
+            .main-content {
+                margin-left: 0;
+            }
+            
+            /* Terminal adjustments for mobile */
+            .terminal-controls .btn {
+                padding: 0.25rem 0.5rem;
+                font-size: 0.875rem;
+            }
+            
+            /* Server list adjustments */
+            .table th, .table td {
+                padding: 0.5rem;
+            }
+            
+            /* Quick commands for terminal */
+            .quick-commands {
+                flex-wrap: wrap;
+            }
+            
+            .quick-commands .btn {
+                margin-bottom: 0.5rem;
+                font-size: 0.875rem;
+                padding: 0.25rem 0.5rem;
+            }
+        }
+        
+        /* Auth Layout */
+        .auth-layout {
+            min-height: 100vh;
+        }
+        
+        .auth-content {
+            max-width: 400px;
+        }
+        
+        .auth-sidebar {
+            background: linear-gradient(to bottom, #4e73df, #224abe);
+        }
+    </style>
+    
+    
+</head>
+<body>
+    
+    <!-- Authentication Layout -->
+    <div class="container-fluid auth-layout">
+        <div class="row min-vh-100">
+            <div class="col-md-6 d-flex align-items-center justify-content-center">
+                <div class="w-100 auth-content">
+                    
+                    
+<div class="card shadow">
+    <div class="card-body p-5">
+        <div class="text-center mb-4">
+            <h2 class="card-title">
+                <i class="bi bi-box-arrow-in-right text-primary"></i>
+                Sign In
+            </h2>
+            <p class="text-muted">Welcome back! Please sign in to your account.</p>
+        </div>
+        
+        
+
+<form  method="post" > <input type="hidden" name="csrfmiddlewaretoken" value="5yaKnLtyXU7XyzVwKiIiXYC3Th1xQnsUdL3lNxMrclrY4fPXsoAb3KDZtcg9TkJS"> <div id="div_id_username" class="mb-3"> <label for="id_username" class="form-label requiredField">
+                Username<span class="asteriskField">*</span> </label> <input type="text" name="username" class="mb-3 textinput form-control" placeholder="Username" autofocus maxlength="150" required id="id_username"> </div> <div id="div_id_password" class="mb-3"> <label for="id_password" class="form-label requiredField">
+                Password<span class="asteriskField">*</span> </label> <input type="password" name="password" class="mb-3 passwordinput form-control" placeholder="Password" required id="id_password"> </div> <div class="mb-3"> <div id="div_id_remember_me" class="mb-3 form-check"> <input type="checkbox" name="remember_me" class="mb-3 checkboxinput form-check-input" id="id_remember_me"> <label for="id_remember_me" class="form-check-label">
+                    Remember me
+                </label> </div> </div> <div class="mb-3"> <div class=""> <input type="submit"
+    name="submit"
+    value="Sign In"
+    
+        class="btn btn-primary btn btn-primary w-100"
+        id="submit-id-submit"
+    
+    
+    /> </div>
+</div> </form>
+
+        
+        <div class="text-center mt-4">
+            <p class="mb-0">
+                Don't have an account? 
+                <a href="/auth/register/" class="text-decoration-none">Create one here</a>
+            </p>
+        </div>
+    </div>
+</div>
+
+                </div>
+            </div>
+            <div class="col-md-6 d-none d-md-flex align-items-center justify-content-center auth-sidebar">
+                <div class="text-center text-white">
+                    <h1 class="display-4 mb-4">
+                        <i class="bi bi-server"></i>
+                        ServerHub
+                    </h1>
+                    <p class="lead">Manage your servers with ease and security</p>
+                    <div class="row mt-5">
+                        <div class="col-4 text-center">
+                            <i class="bi bi-shield-check display-6 mb-2"></i>
+                            <p>Secure</p>
+                        </div>
+                        <div class="col-4 text-center">
+                            <i class="bi bi-lightning display-6 mb-2"></i>
+                            <p>Fast</p>
+                        </div>
+                        <div class="col-4 text-center">
+                            <i class="bi bi-gear display-6 mb-2"></i>
+                            <p>Reliable</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    
+    <!-- Bootstrap 5 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Custom JS -->
+    <script>
+        // Sidebar toggle for mobile
+        document.getElementById('sidebarToggle')?.addEventListener('click', function(e) {
+            e.stopPropagation();
+            document.querySelector('.sidebar').classList.toggle('show');
+        });
+        
+        // Close sidebar when clicking outside of it (mobile only)
+        document.addEventListener('click', function(e) {
+            const sidebar = document.querySelector('.sidebar');
+            const sidebarToggle = document.getElementById('sidebarToggle');
+            
+            if (window.innerWidth < 768 && sidebar.classList.contains('show') && 
+                !sidebar.contains(e.target) && e.target !== sidebarToggle) {
+                sidebar.classList.remove('show');
+            }
+        });
+        
+        // Close sidebar when clicking on a nav link (mobile only)
+        document.querySelectorAll('.sidebar .nav-link').forEach(function(link) {
+            link.addEventListener('click', function() {
+                if (window.innerWidth < 768) {
+                    document.querySelector('.sidebar').classList.remove('show');
+                }
+            });
+        });
+        
+        // Auto-hide alerts after 5 seconds
+        setTimeout(function() {
+            const alerts = document.querySelectorAll('.alert');
+            alerts.forEach(function(alert) {
+                const bsAlert = new bootstrap.Alert(alert);
+                bsAlert.close();
+            });
+        }, 5000);
+    </script>
+    
+    
+</body>
+</html>

@@ -36,6 +36,15 @@ A modern web-based server management application built with Django and Python. M
 - Intuitive navigation
 - Mobile-friendly interface
 
+### ⚡ Performance Optimizations
+- Smart database query caching
+- Optimized database indexes
+- View-level caching for dashboard pages
+- Template fragment caching
+- User-specific cache management
+- Automatic session cleanup
+- Cache management commands
+
 ## Technology Stack
 
 - **Backend**: Django 4.2, Python 3.8+
@@ -45,6 +54,7 @@ A modern web-based server management application built with Django and Python. M
 - **WebSockets**: Django Channels
 - **SSH**: Paramiko
 - **Security**: Cryptography (Fernet encryption)
+- **Performance**: Optimized database queries, caching middleware, template fragment caching
 
 ## Quick Start
 
@@ -167,6 +177,19 @@ For production deployment:
    ```
 
 ## Usage Guide
+
+### Management Commands
+
+```bash
+# Clean up expired server sessions
+python manage.py cleanup_sessions --days=1
+
+# Clear expired cache entries
+python manage.py clear_expired_cache
+
+# Force clear all cache entries
+python manage.py clear_expired_cache --force
+```
 
 ### Adding Your First Server
 
