@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     'servers',
     'terminal',
     'dashboard',
+    'ansible_manager',
 ]
 
 MIDDLEWARE = [

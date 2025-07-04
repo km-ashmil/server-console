@@ -16,6 +16,7 @@ urlpatterns = [
     path('dashboard/', include('dashboard.urls', namespace='dashboard')),
     path('servers/', include('servers.urls', namespace='servers')),
     path('terminal/', include('terminal.urls', namespace='terminal')),
+    path('ansible/', include('ansible_manager.urls', namespace='ansible_manager')),
 ]
 
 if settings.DEBUG:

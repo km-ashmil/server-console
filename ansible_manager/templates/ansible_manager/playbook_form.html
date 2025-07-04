@@ -1,0 +1,580 @@
+{% extends 'ansible_manager/base.html' %}
+{% load static %}
+
+{% block title %}{% if form.instance.pk %}Edit{% else %}Create{% endif %} Playbook{% endblock %}
+
+{% block extra_css %}
+{{ block.super }}
+<style>
+.CodeMirror {
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    height: 400px;
+}
+.CodeMirror-focused {
+    border-color: #80bdff;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+.yaml-error {
+    background-color: #f8d7da;
+    border: 1px solid #f5c6cb;
+    color: #721c24;
+    padding: 0.75rem 1.25rem;
+    margin-bottom: 1rem;
+    border-radius: 0.25rem;
+}
+.yaml-valid {
+    background-color: #d4edda;
+    border: 1px solid #c3e6cb;
+    color: #155724;
+    padding: 0.75rem 1.25rem;
+    margin-bottom: 1rem;
+    border-radius: 0.25rem;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">
+        {% if form.instance.pk %}
+            Edit Playbook: {{ form.instance.display_name }}
+        {% else %}
+            Create New Playbook
+        {% endif %}
+    </h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="btn-group me-2">
+            <a href="{% url 'ansible_manager:playbook_list' %}" class="btn btn-sm btn-outline-secondary">
+                <i class="fas fa-arrow-left"></i> Back to List
+            </a>
+            {% if form.instance.pk %}
+            <a href="{% url 'ansible_manager:playbook_detail' form.instance.pk %}" class="btn btn-sm btn-outline-primary">
+                <i class="fas fa-eye"></i> View
+            </a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card shadow">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-edit"></i> Playbook Details
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="post" id="playbookForm">
+                    {% csrf_token %}
+                    
+                    <!-- Basic Information -->
+                    <div class="row mb-3">
+                        <div class="col-md-8">
+                            <label for="{{ form.name.id_for_label }}" class="form-label">Name *</label>
+                            {{ form.name }}
+                            {% if form.name.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.name.errors.0 }}
+                                </div>
+                            {% endif %}
+                            <div class="form-text">Unique identifier for the playbook</div>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="{{ form.category.id_for_label }}" class="form-label">Category</label>
+                            {{ form.category }}
+                            {% if form.category.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.category.errors.0 }}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="{{ form.display_name.id_for_label }}" class="form-label">Display Name</label>
+                        {{ form.display_name }}
+                        {% if form.display_name.errors %}
+                            <div class="invalid-feedback d-block">
+                                {{ form.display_name.errors.0 }}
+                            </div>
+                        {% endif %}
+                        <div class="form-text">Human-readable name for the playbook</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="{{ form.description.id_for_label }}" class="form-label">Description</label>
+                        {{ form.description }}
+                        {% if form.description.errors %}
+                            <div class="invalid-feedback d-block">
+                                {{ form.description.errors.0 }}
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- YAML Content -->
+                    <div class="mb-3">
+                        <label for="{{ form.content.id_for_label }}" class="form-label">Playbook Content (YAML) *</label>
+                        <div id="yaml-validation-status"></div>
+                        <textarea id="yaml-editor" name="content" style="display: none;">{{ form.content.value|default:'' }}</textarea>
+                        {% if form.content.errors %}
+                            <div class="invalid-feedback d-block">
+                                {{ form.content.errors.0 }}
+                            </div>
+                        {% endif %}
+                        <div class="form-text">
+                            Write your Ansible playbook in YAML format. 
+                            <a href="#" data-bs-toggle="modal" data-bs-target="#templateModal">Use a template</a>
+                        </div>
+                    </div>
+                    
+                    <!-- Variables -->
+                    <div class="mb-3">
+                        <label for="{{ form.variables.id_for_label }}" class="form-label">Default Variables (JSON)</label>
+                        <textarea id="variables-editor" name="variables" style="display: none;">{{ form.variables.value|default:'{}' }}</textarea>
+                        {% if form.variables.errors %}
+                            <div class="invalid-feedback d-block">
+                                {{ form.variables.errors.0 }}
+                            </div>
+                        {% endif %}
+                        <div class="form-text">Default variables for this playbook in JSON format</div>
+                    </div>
+                    
+                    <!-- Tags -->
+                    <div class="mb-3">
+                        <label for="{{ form.tags.id_for_label }}" class="form-label">Tags</label>
+                        {{ form.tags }}
+                        {% if form.tags.errors %}
+                            <div class="invalid-feedback d-block">
+                                {{ form.tags.errors.0 }}
+                            </div>
+                        {% endif %}
+                        <div class="form-text">Comma-separated tags for organizing playbooks</div>
+                    </div>
+                    
+                    <!-- Options -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="form-check">
+                                {{ form.is_active }}
+                                <label class="form-check-label" for="{{ form.is_active.id_for_label }}">
+                                    Active
+                                </label>
+                                <div class="form-text">Only active playbooks can be executed</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-check">
+                                {{ form.check_mode }}
+                                <label class="form-check-label" for="{{ form.check_mode.id_for_label }}">
+                                    Check Mode (Dry Run)
+                                </label>
+                                <div class="form-text">Run in check mode by default</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="form-check">
+                                {{ form.become }}
+                                <label class="form-check-label" for="{{ form.become.id_for_label }}">
+                                    Become (sudo)
+                                </label>
+                                <div class="form-text">Run with elevated privileges</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="{{ form.timeout.id_for_label }}" class="form-label">Timeout (seconds)</label>
+                            {{ form.timeout }}
+                            {% if form.timeout.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.timeout.errors.0 }}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <!-- Submit Buttons -->
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> 
+                                {% if form.instance.pk %}Update{% else %}Create{% endif %} Playbook
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary" onclick="validateYAML()">
+                                <i class="fas fa-check"></i> Validate YAML
+                            </button>
+                        </div>
+                        <div>
+                            {% if form.instance.pk %}
+                            <a href="{% url 'ansible_manager:execution_create' %}?playbook={{ form.instance.pk }}" 
+                               class="btn btn-success">
+                                <i class="fas fa-play"></i> Execute
+                            </a>
+                            {% endif %}
+                            <a href="{% url 'ansible_manager:playbook_list' %}" class="btn btn-outline-secondary">
+                                Cancel
+                            </a>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <!-- Help Panel -->
+        <div class="card shadow mb-4">
+            <div class="card-header">
+                <h6 class="card-title mb-0">
+                    <i class="fas fa-question-circle"></i> Help
+                </h6>
+            </div>
+            <div class="card-body">
+                <h6>Playbook Structure</h6>
+                <p class="small text-muted">
+                    A playbook should contain a list of plays. Each play targets specific hosts and contains tasks.
+                </p>
+                
+                <h6>Basic Example</h6>
+                <pre class="small bg-light p-2 rounded"><code>---
+- name: Example Play
+  hosts: all
+  tasks:
+    - name: Ensure package is installed
+      package:
+        name: nginx
+        state: present</code></pre>
+                
+                <h6>Variables</h6>
+                <p class="small text-muted">
+                    Use the Variables field to define default values that can be overridden during execution.
+                </p>
+                
+                <div class="d-grid gap-2">
+                    <button type="button" class="btn btn-sm btn-outline-primary" 
+                            data-bs-toggle="modal" data-bs-target="#templateModal">
+                        <i class="fas fa-file-code"></i> Browse Templates
+                    </button>
+                    <a href="https://docs.ansible.com/ansible/latest/user_guide/playbooks.html" 
+                       target="_blank" class="btn btn-sm btn-outline-info">
+                        <i class="fas fa-external-link-alt"></i> Ansible Docs
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Recent Executions -->
+        {% if form.instance.pk and recent_executions %}
+        <div class="card shadow">
+            <div class="card-header">
+                <h6 class="card-title mb-0">
+                    <i class="fas fa-history"></i> Recent Executions
+                </h6>
+            </div>
+            <div class="card-body">
+                {% for execution in recent_executions %}
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <div>
+                        <div class="fw-bold small">{{ execution.inventory.name }}</div>
+                        <div class="text-muted small">{{ execution.started_at|timesince }} ago</div>
+                    </div>
+                    <div>
+                        {% if execution.status == 'success' %}
+                            <span class="badge bg-success">Success</span>
+                        {% elif execution.status == 'failed' %}
+                            <span class="badge bg-danger">Failed</span>
+                        {% elif execution.status == 'running' %}
+                            <span class="badge bg-primary">Running</span>
+                        {% else %}
+                            <span class="badge bg-secondary">{{ execution.status|title }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+                <a href="{% url 'ansible_manager:execution_list' %}?playbook={{ form.instance.pk }}" 
+                   class="btn btn-sm btn-outline-primary w-100">
+                    View All Executions
+                </a>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Template Modal -->
+<div class="modal fade" id="templateModal" tabindex="-1" aria-labelledby="templateModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="templateModalLabel">Playbook Templates</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <div class="card h-100">
+                            <div class="card-body">
+                                <h6 class="card-title">Basic Setup</h6>
+                                <p class="card-text small">Install packages and start services</p>
+                                <button class="btn btn-sm btn-primary" onclick="useTemplate('basic')">
+                                    Use Template
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <div class="card h-100">
+                            <div class="card-body">
+                                <h6 class="card-title">Web Server</h6>
+                                <p class="card-text small">Deploy and configure web server</p>
+                                <button class="btn btn-sm btn-primary" onclick="useTemplate('webserver')">
+                                    Use Template
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <div class="card h-100">
+                            <div class="card-body">
+                                <h6 class="card-title">Database</h6>
+                                <p class="card-text small">Install and configure database</p>
+                                <button class="btn btn-sm btn-primary" onclick="useTemplate('database')">
+                                    Use Template
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <div class="card h-100">
+                            <div class="card-body">
+                                <h6 class="card-title">Security</h6>
+                                <p class="card-text small">Apply security configurations</p>
+                                <button class="btn btn-sm btn-primary" onclick="useTemplate('security')">
+                                    Use Template
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+<script>
+let yamlEditor, variablesEditor;
+
+// Initialize CodeMirror editors
+document.addEventListener('DOMContentLoaded', function() {
+    // YAML Editor
+    yamlEditor = CodeMirror.fromTextArea(document.getElementById('yaml-editor'), {
+        mode: 'yaml',
+        theme: 'default',
+        lineNumbers: true,
+        indentUnit: 2,
+        tabSize: 2,
+        lineWrapping: true,
+        foldGutter: true,
+        gutters: ['CodeMirror-linenumbers', 'CodeMirror-foldgutter'],
+        extraKeys: {
+            'Ctrl-Space': 'autocomplete',
+            'Tab': function(cm) {
+                if (cm.somethingSelected()) {
+                    cm.indentSelection('add');
+                } else {
+                    cm.replaceSelection('  ');
+                }
+            }
+        }
+    });
+    
+    // Variables Editor
+    variablesEditor = CodeMirror.fromTextArea(document.getElementById('variables-editor'), {
+        mode: 'application/json',
+        theme: 'default',
+        lineNumbers: true,
+        indentUnit: 2,
+        tabSize: 2,
+        lineWrapping: true,
+        foldGutter: true,
+        gutters: ['CodeMirror-linenumbers', 'CodeMirror-foldgutter']
+    });
+    
+    // Auto-validate YAML on change
+    yamlEditor.on('change', function() {
+        clearTimeout(window.yamlValidationTimeout);
+        window.yamlValidationTimeout = setTimeout(validateYAML, 1000);
+    });
+    
+    // Initial validation
+    validateYAML();
+});
+
+// YAML Validation
+function validateYAML() {
+    const content = yamlEditor.getValue();
+    const statusDiv = document.getElementById('yaml-validation-status');
+    
+    if (!content.trim()) {
+        statusDiv.innerHTML = '';
+        return;
+    }
+    
+    try {
+        // Basic YAML structure validation
+        if (!content.startsWith('---')) {
+            throw new Error('Playbook should start with "---"');
+        }
+        
+        // Check for basic playbook structure
+        if (!content.includes('hosts:') && !content.includes('hosts ')) {
+            throw new Error('Playbook should contain at least one play with "hosts" defined');
+        }
+        
+        statusDiv.innerHTML = '<div class="yaml-valid"><i class="fas fa-check"></i> YAML structure looks good</div>';
+    } catch (error) {
+        statusDiv.innerHTML = '<div class="yaml-error"><i class="fas fa-exclamation-triangle"></i> ' + error.message + '</div>';
+    }
+}
+
+// Template functions
+const templates = {
+    basic: `---
+- name: Basic Server Setup
+  hosts: all
+  become: yes
+  tasks:
+    - name: Update package cache
+      package:
+        update_cache: yes
+    
+    - name: Install essential packages
+      package:
+        name:
+          - curl
+          - wget
+          - vim
+          - htop
+        state: present
+    
+    - name: Create application user
+      user:
+        name: appuser
+        shell: /bin/bash
+        create_home: yes`,
+    
+    webserver: `---
+- name: Web Server Setup
+  hosts: webservers
+  become: yes
+  vars:
+    http_port: 80
+    max_clients: 200
+  tasks:
+    - name: Install web server
+      package:
+        name: nginx
+        state: present
+    
+    - name: Start and enable web server
+      service:
+        name: nginx
+        state: started
+        enabled: yes
+    
+    - name: Configure firewall
+      firewalld:
+        port: "{{ http_port }}/tcp"
+        permanent: yes
+        state: enabled
+        immediate: yes`,
+    
+    database: `---
+- name: Database Server Setup
+  hosts: dbservers
+  become: yes
+  vars:
+    db_name: myapp
+    db_user: appuser
+  tasks:
+    - name: Install database server
+      package:
+        name: postgresql
+        state: present
+    
+    - name: Start and enable database
+      service:
+        name: postgresql
+        state: started
+        enabled: yes
+    
+    - name: Create database
+      postgresql_db:
+        name: "{{ db_name }}"
+        state: present
+    
+    - name: Create database user
+      postgresql_user:
+        name: "{{ db_user }}"
+        password: "{{ db_password }}"
+        priv: "{{ db_name }}:ALL"
+        state: present`,
+    
+    security: `---
+- name: Security Hardening
+  hosts: all
+  become: yes
+  tasks:
+    - name: Update all packages
+      package:
+        name: '*'
+        state: latest
+    
+    - name: Configure SSH
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#?PermitRootLogin'
+        line: 'PermitRootLogin no'
+        backup: yes
+      notify: restart ssh
+    
+    - name: Install fail2ban
+      package:
+        name: fail2ban
+        state: present
+    
+    - name: Start and enable fail2ban
+      service:
+        name: fail2ban
+        state: started
+        enabled: yes
+  
+  handlers:
+    - name: restart ssh
+      service:
+        name: ssh
+        state: restarted`
+};
+
+function useTemplate(templateName) {
+    if (templates[templateName]) {
+        yamlEditor.setValue(templates[templateName]);
+        bootstrap.Modal.getInstance(document.getElementById('templateModal')).hide();
+        validateYAML();
+    }
+}
+
+// Form submission
+document.getElementById('playbookForm').addEventListener('submit', function(e) {
+    // Update textarea values from CodeMirror
+    yamlEditor.save();
+    variablesEditor.save();
+});
+</script>
+{% endblock %}

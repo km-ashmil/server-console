@@ -1,0 +1,62 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block extra_css %}
+<link href="{% static 'ansible_manager/css/ansible.css' %}" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/monokai.min.css" rel="stylesheet">
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/yaml/yaml.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/javascript/javascript.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/edit/matchbrackets.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/edit/closebrackets.min.js"></script>
+<script src="{% static 'ansible_manager/js/ansible.js' %}"></script>
+{% endblock %}
+
+{% block sidebar_extra %}
+<div class="sidebar-section">
+    <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">
+        <span>Ansible</span>
+    </h6>
+    <ul class="nav flex-column mb-2">
+        <li class="nav-item">
+            <a class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}" 
+               href="{% url 'ansible_manager:dashboard' %}">
+                <i class="fas fa-tachometer-alt"></i>
+                Dashboard
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {% if 'playbook' in request.resolver_match.url_name %}active{% endif %}" 
+               href="{% url 'ansible_manager:playbook_list' %}">
+                <i class="fas fa-play"></i>
+                Playbooks
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {% if 'inventory' in request.resolver_match.url_name %}active{% endif %}" 
+               href="{% url 'ansible_manager:inventory_list' %}">
+                <i class="fas fa-server"></i>
+                Inventories
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {% if 'execution' in request.resolver_match.url_name %}active{% endif %}" 
+               href="{% url 'ansible_manager:execution_list' %}">
+                <i class="fas fa-tasks"></i>
+                Executions
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {% if 'template' in request.resolver_match.url_name %}active{% endif %}" 
+               href="{% url 'ansible_manager:template_list' %}">
+                <i class="fas fa-file-code"></i>
+                Templates
+            </a>
+        </li>
+    </ul>
+</div>
+{% endblock %}

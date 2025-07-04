@@ -1,0 +1,710 @@
+{% extends 'ansible_manager/base.html' %}
+{% load static %}
+
+{% block title %}Execution Details - {{ execution.id }}{% endblock %}
+
+{% block extra_css %}
+<style>
+.execution-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 30px;
+    border-radius: 15px;
+    margin-bottom: 30px;
+}
+
+.execution-info {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+    margin-top: 20px;
+}
+
+.info-item {
+    text-align: center;
+}
+
+.info-item .label {
+    font-size: 0.9rem;
+    opacity: 0.8;
+    margin-bottom: 5px;
+}
+
+.info-item .value {
+    font-size: 1.2rem;
+    font-weight: bold;
+}
+
+.output-container {
+    background: #1e1e1e;
+    color: #f8f8f2;
+    border-radius: 10px;
+    padding: 20px;
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+    line-height: 1.4;
+    max-height: 600px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+.output-container.auto-scroll {
+    scroll-behavior: smooth;
+}
+
+.log-line {
+    margin-bottom: 2px;
+    padding: 2px 0;
+}
+
+.log-line.error {
+    color: #ff6b6b;
+    background-color: rgba(255, 107, 107, 0.1);
+    padding: 4px;
+    border-radius: 3px;
+}
+
+.log-line.warning {
+    color: #feca57;
+}
+
+.log-line.success {
+    color: #48dbfb;
+}
+
+.log-line.task {
+    color: #ff9ff3;
+    font-weight: bold;
+}
+
+.progress-section {
+    background: white;
+    border-radius: 10px;
+    padding: 25px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+
+.task-progress {
+    margin-bottom: 15px;
+}
+
+.task-progress .task-name {
+    font-weight: 600;
+    margin-bottom: 5px;
+    color: #333;
+}
+
+.task-progress .progress {
+    height: 8px;
+    border-radius: 4px;
+    background-color: #e9ecef;
+}
+
+.task-progress .progress-bar {
+    background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+    transition: width 0.3s ease;
+}
+
+.controls {
+    position: sticky;
+    top: 20px;
+    background: white;
+    border-radius: 10px;
+    padding: 20px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    margin-bottom: 20px;
+}
+
+.control-group {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.control-group:last-child {
+    margin-bottom: 0;
+}
+
+.btn-control {
+    padding: 8px 16px;
+    border-radius: 20px;
+    border: none;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn-refresh {
+    background: #28a745;
+    color: white;
+}
+
+.btn-refresh:hover {
+    background: #218838;
+}
+
+.btn-cancel {
+    background: #dc3545;
+    color: white;
+}
+
+.btn-cancel:hover {
+    background: #c82333;
+}
+
+.btn-download {
+    background: #17a2b8;
+    color: white;
+}
+
+.btn-download:hover {
+    background: #138496;
+}
+
+.auto-scroll-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 50px;
+    height: 24px;
+}
+
+.switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    transition: .4s;
+    border-radius: 24px;
+}
+
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 18px;
+    width: 18px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: .4s;
+    border-radius: 50%;
+}
+
+input:checked + .slider {
+    background-color: #667eea;
+}
+
+input:checked + .slider:before {
+    transform: translateX(26px);
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.stat-item {
+    background: white;
+    border-radius: 8px;
+    padding: 15px;
+    text-align: center;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.stat-item .number {
+    font-size: 1.8rem;
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+.stat-item .label {
+    font-size: 0.9rem;
+    color: #666;
+}
+
+.hosts-section {
+    background: white;
+    border-radius: 10px;
+    padding: 25px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+
+.host-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid #eee;
+}
+
+.host-item:last-child {
+    border-bottom: none;
+}
+
+.host-name {
+    font-weight: 600;
+}
+
+.host-status {
+    padding: 4px 12px;
+    border-radius: 15px;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.host-status.success {
+    background: #d4edda;
+    color: #155724;
+}
+
+.host-status.failed {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.host-status.unreachable {
+    background: #fff3cd;
+    color: #856404;
+}
+
+@media (max-width: 768px) {
+    .execution-info {
+        grid-template-columns: 1fr;
+    }
+    
+    .control-group {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="execution-header">
+    <div class="d-flex justify-content-between align-items-start">
+        <div>
+            <h1><i class="fas fa-play-circle"></i> Execution #{{ execution.id }}</h1>
+            <p class="mb-0">{{ execution.playbook.name }} on {{ execution.inventory.name }}</p>
+        </div>
+        <div class="text-end">
+            <span class="badge badge-{{ execution.status }} fs-6 px-3 py-2">{{ execution.get_status_display }}</span>
+        </div>
+    </div>
+    
+    <div class="execution-info">
+        <div class="info-item">
+            <div class="label">Started</div>
+            <div class="value">{{ execution.started_at|date:"M d, Y H:i" }}</div>
+        </div>
+        <div class="info-item">
+            <div class="label">Duration</div>
+            <div class="value" id="duration-display">{{ execution.duration|default:"--" }}</div>
+        </div>
+        <div class="info-item">
+            <div class="label">Started By</div>
+            <div class="value">{{ execution.started_by.username }}</div>
+        </div>
+        <div class="info-item">
+            <div class="label">Progress</div>
+            <div class="value" id="progress-display">{{ execution.progress|default:"0" }}%</div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <!-- Progress Section -->
+        {% if execution.status == 'running' %}
+        <div class="progress-section">
+            <h3><i class="fas fa-tasks"></i> Task Progress</h3>
+            <div id="task-progress-container">
+                <!-- Task progress will be updated via JavaScript -->
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- Output Section -->
+        <div class="progress-section">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h3><i class="fas fa-terminal"></i> Execution Output</h3>
+                <div class="auto-scroll-toggle">
+                    <span>Auto-scroll</span>
+                    <label class="switch">
+                        <input type="checkbox" id="auto-scroll" checked>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+            </div>
+            <div class="output-container auto-scroll" id="output-container">
+                <div id="output-content">{{ execution.output|default:"No output available yet..." }}</div>
+            </div>
+        </div>
+        
+        <!-- Hosts Section -->
+        {% if execution.host_results %}
+        <div class="hosts-section">
+            <h3><i class="fas fa-server"></i> Host Results</h3>
+            <div id="hosts-container">
+                {% for host, result in execution.host_results.items %}
+                <div class="host-item">
+                    <span class="host-name">{{ host }}</span>
+                    <span class="host-status {{ result.status }}">{{ result.status|title }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    
+    <div class="col-lg-4">
+        <!-- Controls -->
+        <div class="controls">
+            <h4><i class="fas fa-cog"></i> Controls</h4>
+            
+            <div class="control-group">
+                <button class="btn-control btn-refresh" onclick="refreshExecution()">
+                    <i class="fas fa-sync-alt"></i> Refresh
+                </button>
+                {% if execution.status == 'running' %}
+                <button class="btn-control btn-cancel" onclick="cancelExecution()">
+                    <i class="fas fa-stop"></i> Cancel
+                </button>
+                {% endif %}
+            </div>
+            
+            <div class="control-group">
+                <button class="btn-control btn-download" onclick="downloadOutput()">
+                    <i class="fas fa-download"></i> Download Output
+                </button>
+                {% if execution.status in 'completed,failed' %}
+                <button class="btn-control btn-ansible" onclick="rerunExecution()">
+                    <i class="fas fa-redo"></i> Rerun
+                </button>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Statistics -->
+        <div class="progress-section">
+            <h4><i class="fas fa-chart-bar"></i> Statistics</h4>
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <div class="number status-success" id="tasks-ok">{{ execution.tasks_ok|default:"0" }}</div>
+                    <div class="label">Tasks OK</div>
+                </div>
+                <div class="stat-item">
+                    <div class="number status-failed" id="tasks-failed">{{ execution.tasks_failed|default:"0" }}</div>
+                    <div class="label">Failed</div>
+                </div>
+                <div class="stat-item">
+                    <div class="number status-running" id="tasks-changed">{{ execution.tasks_changed|default:"0" }}</div>
+                    <div class="label">Changed</div>
+                </div>
+                <div class="stat-item">
+                    <div class="number status-pending" id="tasks-skipped">{{ execution.tasks_skipped|default:"0" }}</div>
+                    <div class="label">Skipped</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Execution Details -->
+        <div class="progress-section">
+            <h4><i class="fas fa-info-circle"></i> Details</h4>
+            <table class="table table-sm">
+                <tr>
+                    <td><strong>Playbook:</strong></td>
+                    <td><a href="{% url 'ansible_manager:playbook_detail' execution.playbook.id %}">{{ execution.playbook.name }}</a></td>
+                </tr>
+                <tr>
+                    <td><strong>Inventory:</strong></td>
+                    <td><a href="{% url 'ansible_manager:inventory_detail' execution.inventory.id %}">{{ execution.inventory.name }}</a></td>
+                </tr>
+                <tr>
+                    <td><strong>Created:</strong></td>
+                    <td>{{ execution.created_at|date:"M d, Y H:i:s" }}</td>
+                </tr>
+                {% if execution.finished_at %}
+                <tr>
+                    <td><strong>Finished:</strong></td>
+                    <td>{{ execution.finished_at|date:"M d, Y H:i:s" }}</td>
+                </tr>
+                {% endif %}
+                {% if execution.extra_vars %}
+                <tr>
+                    <td><strong>Extra Vars:</strong></td>
+                    <td><pre class="small mb-0">{{ execution.extra_vars }}</pre></td>
+                </tr>
+                {% endif %}
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let refreshInterval;
+let executionId = {{ execution.id }};
+let isAutoScrollEnabled = true;
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize auto-refresh for running executions
+    {% if execution.status == 'running' %}
+    startAutoRefresh();
+    {% endif %}
+    
+    // Auto-scroll toggle
+    document.getElementById('auto-scroll').addEventListener('change', function() {
+        isAutoScrollEnabled = this.checked;
+        const container = document.getElementById('output-container');
+        if (isAutoScrollEnabled) {
+            container.classList.add('auto-scroll');
+            scrollToBottom();
+        } else {
+            container.classList.remove('auto-scroll');
+        }
+    });
+});
+
+function startAutoRefresh() {
+    refreshInterval = setInterval(refreshExecution, 3000);
+}
+
+function stopAutoRefresh() {
+    if (refreshInterval) {
+        clearInterval(refreshInterval);
+        refreshInterval = null;
+    }
+}
+
+function refreshExecution() {
+    fetch(`/ansible/api/executions/${executionId}/`)
+        .then(response => response.json())
+        .then(data => {
+            updateExecutionData(data);
+            
+            // Stop auto-refresh if execution is no longer running
+            if (data.status !== 'running') {
+                stopAutoRefresh();
+            }
+        })
+        .catch(error => {
+            console.error('Error refreshing execution:', error);
+        });
+}
+
+function updateExecutionData(data) {
+    // Update status badge
+    const statusBadge = document.querySelector('.badge');
+    if (statusBadge) {
+        statusBadge.className = `badge badge-${data.status} fs-6 px-3 py-2`;
+        statusBadge.textContent = data.status_display;
+    }
+    
+    // Update duration
+    const durationDisplay = document.getElementById('duration-display');
+    if (durationDisplay && data.duration) {
+        durationDisplay.textContent = data.duration;
+    }
+    
+    // Update progress
+    const progressDisplay = document.getElementById('progress-display');
+    if (progressDisplay && data.progress !== undefined) {
+        progressDisplay.textContent = data.progress + '%';
+    }
+    
+    // Update output
+    const outputContent = document.getElementById('output-content');
+    if (outputContent && data.output) {
+        const shouldScroll = isAutoScrollEnabled && isScrolledToBottom();
+        outputContent.innerHTML = formatOutput(data.output);
+        
+        if (shouldScroll) {
+            scrollToBottom();
+        }
+    }
+    
+    // Update statistics
+    updateStatistics(data);
+    
+    // Update task progress
+    if (data.task_progress) {
+        updateTaskProgress(data.task_progress);
+    }
+    
+    // Update host results
+    if (data.host_results) {
+        updateHostResults(data.host_results);
+    }
+}
+
+function updateStatistics(data) {
+    const stats = ['tasks_ok', 'tasks_failed', 'tasks_changed', 'tasks_skipped'];
+    stats.forEach(stat => {
+        const element = document.getElementById(stat.replace('_', '-'));
+        if (element && data[stat] !== undefined) {
+            element.textContent = data[stat];
+        }
+    });
+}
+
+function updateTaskProgress(taskProgress) {
+    const container = document.getElementById('task-progress-container');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    taskProgress.forEach(task => {
+        const taskDiv = document.createElement('div');
+        taskDiv.className = 'task-progress';
+        taskDiv.innerHTML = `
+            <div class="task-name">${task.name}</div>
+            <div class="progress">
+                <div class="progress-bar" style="width: ${task.progress}%"></div>
+            </div>
+            <small class="text-muted">${task.status} - ${task.progress}%</small>
+        `;
+        container.appendChild(taskDiv);
+    });
+}
+
+function updateHostResults(hostResults) {
+    const container = document.getElementById('hosts-container');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    Object.entries(hostResults).forEach(([host, result]) => {
+        const hostDiv = document.createElement('div');
+        hostDiv.className = 'host-item';
+        hostDiv.innerHTML = `
+            <span class="host-name">${host}</span>
+            <span class="host-status ${result.status}">${result.status.charAt(0).toUpperCase() + result.status.slice(1)}</span>
+        `;
+        container.appendChild(hostDiv);
+    });
+}
+
+function formatOutput(output) {
+    if (!output) return 'No output available yet...';
+    
+    return output.split('\n').map(line => {
+        let className = 'log-line';
+        
+        if (line.includes('ERROR') || line.includes('FAILED')) {
+            className += ' error';
+        } else if (line.includes('WARNING') || line.includes('WARN')) {
+            className += ' warning';
+        } else if (line.includes('OK') || line.includes('SUCCESS')) {
+            className += ' success';
+        } else if (line.includes('TASK')) {
+            className += ' task';
+        }
+        
+        return `<div class="${className}">${escapeHtml(line)}</div>`;
+    }).join('');
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function isScrolledToBottom() {
+    const container = document.getElementById('output-container');
+    return container.scrollTop + container.clientHeight >= container.scrollHeight - 10;
+}
+
+function scrollToBottom() {
+    const container = document.getElementById('output-container');
+    container.scrollTop = container.scrollHeight;
+}
+
+function cancelExecution() {
+    if (confirm('Are you sure you want to cancel this execution?')) {
+        fetch(`/ansible/api/executions/${executionId}/cancel/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCsrfToken()
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification('Execution cancelled successfully', 'success');
+                refreshExecution();
+            } else {
+                showNotification('Failed to cancel execution: ' + data.error, 'danger');
+            }
+        })
+        .catch(error => {
+            showNotification('Error cancelling execution', 'danger');
+        });
+    }
+}
+
+function rerunExecution() {
+    if (confirm('Are you sure you want to rerun this execution?')) {
+        fetch(`/ansible/api/executions/${executionId}/rerun/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCsrfToken()
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification('Execution restarted successfully', 'success');
+                window.location.href = `/ansible/executions/${data.execution_id}/`;
+            } else {
+                showNotification('Failed to rerun execution: ' + data.error, 'danger');
+            }
+        })
+        .catch(error => {
+            showNotification('Error rerunning execution', 'danger');
+        });
+    }
+}
+
+function downloadOutput() {
+    window.open(`/ansible/api/executions/${executionId}/output/`, '_blank');
+}
+
+function getCsrfToken() {
+    return document.querySelector('[name=csrfmiddlewaretoken]').value;
+}
+
+function showNotification(message, type) {
+    // Use the global notification function from ansible.js
+    if (window.ansibleManager && window.ansibleManager.showNotification) {
+        window.ansibleManager.showNotification(message, type);
+    } else {
+        alert(message);
+    }
+}
+</script>
+{% endblock %}

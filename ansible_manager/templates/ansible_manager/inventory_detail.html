@@ -1,0 +1,329 @@
+{% extends 'ansible_manager/base.html' %}
+{% load static %}
+
+{% block title %}Inventory Details - {{ inventory.name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .inventory-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 2rem;
+        border-radius: 0.5rem;
+        margin-bottom: 2rem;
+    }
+    
+    .inventory-content {
+        background-color: #2d3748;
+        color: #e2e8f0;
+        border-radius: 0.375rem;
+        font-family: 'Courier New', monospace;
+        font-size: 0.875rem;
+        line-height: 1.5;
+        max-height: 500px;
+        overflow-y: auto;
+    }
+    
+    .host-status {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        margin-right: 0.5rem;
+    }
+    
+    .host-online { background-color: #48bb78; }
+    .host-offline { background-color: #f56565; }
+    .host-unknown { background-color: #ed8936; }
+    
+    .sync-progress {
+        display: none;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Inventory Header -->
+    <div class="inventory-header">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h1 class="mb-2">
+                    <i class="bi bi-hdd-network"></i>
+                    {{ inventory.name }}
+                </h1>
+                <p class="mb-0 opacity-75">{{ inventory.description|default:"No description provided" }}</p>
+                <div class="mt-2">
+                    <span class="badge bg-light text-dark me-2">{{ inventory.get_type_display }}</span>
+                    <span class="badge bg-light text-dark me-2">
+                        <i class="bi bi-calendar"></i>
+                        Created {{ inventory.created_at|date:"M d, Y" }}
+                    </span>
+                    <span class="badge bg-light text-dark">
+                        <i class="bi bi-clock"></i>
+                        Last sync: {{ inventory.last_sync|date:"M d, Y H:i"|default:"Never" }}
+                    </span>
+                </div>
+            </div>
+            <div class="col-md-4 text-end">
+                <div class="btn-group" role="group">
+                    <a href="{% url 'ansible_manager:inventory_edit' inventory.id %}" class="btn btn-light">
+                        <i class="bi bi-pencil"></i> Edit
+                    </a>
+                    <button type="button" class="btn btn-success" onclick="syncInventory('{{ inventory.id }}')">
+                        <i class="bi bi-arrow-clockwise"></i> Sync
+                    </button>
+                    <button type="button" class="btn btn-danger" onclick="deleteInventory('{{ inventory.id }}')">
+                        <i class="bi bi-trash"></i> Delete
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Sync Progress -->
+    <div class="sync-progress alert alert-info" id="syncProgress">
+        <div class="d-flex align-items-center">
+            <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+            <span>Syncing inventory...</span>
+        </div>
+    </div>
+    
+    <div class="row">
+        <!-- Inventory Content -->
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="bi bi-file-text"></i>
+                        Inventory Content
+                    </h5>
+                    <div class="btn-group btn-group-sm">
+                        <button type="button" class="btn btn-outline-secondary" onclick="downloadInventory()">
+                            <i class="bi bi-download"></i> Download
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" onclick="testInventory()">
+                            <i class="bi bi-play-circle"></i> Test
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <pre class="inventory-content p-3 m-0"><code>{{ inventory.content|default:"No content available" }}</code></pre>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Inventory Statistics -->
+        <div class="col-lg-4">
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="bi bi-bar-chart"></i>
+                        Statistics
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-6">
+                            <div class="border-end">
+                                <h4 class="text-primary mb-1">{{ host_count|default:0 }}</h4>
+                                <small class="text-muted">Total Hosts</small>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <h4 class="text-success mb-1">{{ group_count|default:0 }}</h4>
+                            <small class="text-muted">Groups</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Variables -->
+            {% if inventory.variables %}
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="bi bi-gear"></i>
+                        Variables
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <pre class="bg-light p-2 rounded"><code>{{ inventory.variables }}</code></pre>
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- Recent Executions -->
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="bi bi-clock-history"></i>
+                        Recent Executions
+                    </h6>
+                </div>
+                <div class="card-body">
+                    {% if recent_executions %}
+                        {% for execution in recent_executions %}
+                        <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom">
+                            <div>
+                                <small class="fw-bold">{{ execution.playbook.name }}</small><br>
+                                <small class="text-muted">{{ execution.started_at|date:"M d, H:i" }}</small>
+                            </div>
+                            <span class="badge bg-{{ execution.status|lower }}">
+                                {{ execution.get_status_display }}
+                            </span>
+                        </div>
+                        {% endfor %}
+                        <a href="{% url 'ansible_manager:execution_list' %}?inventory={{ inventory.id }}" class="btn btn-sm btn-outline-primary w-100">
+                            View All Executions
+                        </a>
+                    {% else %}
+                        <p class="text-muted mb-0">No recent executions</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirm Deletion</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete the inventory "<strong>{{ inventory.name }}</strong>"?</p>
+                <p class="text-danger"><small>This action cannot be undone.</small></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" onclick="confirmDelete()">Delete</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function syncInventory(inventoryId) {
+    const progressDiv = document.getElementById('syncProgress');
+    progressDiv.style.display = 'block';
+    
+    fetch(`/ansible/api/inventories/${inventoryId}/sync/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCsrfToken(),
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        progressDiv.style.display = 'none';
+        if (data.success) {
+            showNotification('Inventory synced successfully', 'success');
+            location.reload();
+        } else {
+            showNotification(data.error || 'Failed to sync inventory', 'error');
+        }
+    })
+    .catch(error => {
+        progressDiv.style.display = 'none';
+        showNotification('Error syncing inventory', 'error');
+    });
+}
+
+function deleteInventory(inventoryId) {
+    const modal = new bootstrap.Modal(document.getElementById('deleteModal'));
+    modal.show();
+    
+    window.confirmDelete = function() {
+        fetch(`/ansible/api/inventories/${inventoryId}/delete/`, {
+            method: 'DELETE',
+            headers: {
+                'X-CSRFToken': getCsrfToken()
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification('Inventory deleted successfully', 'success');
+                window.location.href = '{% url "ansible_manager:inventory_list" %}';
+            } else {
+                showNotification(data.error || 'Failed to delete inventory', 'error');
+            }
+        })
+        .catch(error => {
+            showNotification('Error deleting inventory', 'error');
+        });
+        
+        modal.hide();
+    };
+}
+
+function downloadInventory() {
+    const content = {{ inventory.content|escapejs }};
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = '{{ inventory.name }}.{{ inventory.type }}';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+}
+
+function testInventory() {
+    showNotification('Testing inventory connectivity...', 'info');
+    
+    fetch(`/ansible/api/inventories/{{ inventory.id }}/test/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCsrfToken(),
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification('Inventory test completed successfully', 'success');
+        } else {
+            showNotification(data.error || 'Inventory test failed', 'error');
+        }
+    })
+    .catch(error => {
+        showNotification('Error testing inventory', 'error');
+    });
+}
+
+function getCsrfToken() {
+    return document.querySelector('[name=csrfmiddlewaretoken]').value;
+}
+
+function showNotification(message, type) {
+    // Simple notification implementation
+    const alertClass = type === 'success' ? 'alert-success' : 
+                      type === 'error' ? 'alert-danger' : 'alert-info';
+    
+    const notification = document.createElement('div');
+    notification.className = `alert ${alertClass} alert-dismissible fade show position-fixed`;
+    notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    notification.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.parentNode.removeChild(notification);
+        }
+    }, 5000);
+}
+</script>
+{% endblock %}
